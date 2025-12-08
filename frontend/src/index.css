@@ -1,0 +1,10 @@
+body {
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f8f9fa;
+}
+.cursor-pointer { cursor: pointer; }
+.hover-scale:hover { transform: scale(1.05); transition: 0.3s; }
+/* Kart görselleri için arka plan */
+.bg-gradient-silver { background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); }
+.bg-gradient-ocean { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); }
+.bg-gradient-dark { background: linear-gradient(135deg, #232526 0%, #414345 100%); }

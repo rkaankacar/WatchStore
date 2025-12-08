@@ -1,0 +1,102 @@
+import React, { useState } from 'react';
+import { ShoppingCart, User, Menu, X, Watch, LogOut, UserPlus, LogIn, LayoutDashboard, Heart } from 'lucide-react'; // Heart ikonunu ekledik
+import { Link, useNavigate } from 'react-router-dom';
+
+const Navbar = ({ user, handleLogout }) => {
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const isAdmin = user?.role === 'admin';
+
+  const onLogoutClick = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('user_id');
+    handleLogout();
+    navigate('/login');
+  };
+
+  return (
+    <nav className="navbar navbar-expand-lg navbar-dark bg-dark py-3 sticky-top shadow-sm">
+      <div className="container">
+        {/* LOGO */}
+        <Link className="navbar-brand d-flex align-items-center fw-bold fs-4" to="/">
+          <Watch className="me-2 text-warning" /> WatchStore
+        </Link>
+
+        {/* MOBİL MENÜ BUTONU */}
+        <button
+          className="navbar-toggler border-0"
+          type="button"
+          onClick={() => setIsNavOpen(!isNavOpen)}
+        >
+          {isNavOpen ? <X size={28} /> : <Menu size={28} />}
+        </button>
+
+        {/* MENÜ İÇERİĞİ */}
+        <div className={`collapse navbar-collapse ${isNavOpen ? 'show' : ''}`}>
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0 mx-auto">
+            <li className="nav-item"><Link className="nav-link px-3" to="/">Anasayfa</Link></li>
+            <li className="nav-item"><Link className="nav-link px-3" to="/collections">Koleksiyon</Link></li>
+
+            {/* Admin Linki */}
+            {isAdmin && (
+              <li className="nav-item">
+                <Link className="nav-link px-3 text-warning fw-bold" to="/admin">
+                  <LayoutDashboard size={18} className="me-1 mb-1" /> Admin Panel
+                </Link>
+              </li>
+            )}
+          </ul>
+
+          <div className="d-flex align-items-center gap-3">
+            {user ? (
+              // --- GİRİŞ YAPMIŞ KULLANICI ---
+              <>
+                {/* 1. FAVORİLER İKONU (YENİ EKLENDİ) */}
+                <div className="position-relative">
+                  <Link to="/favorites" className="text-white" title="Favorilerim">
+                    <Heart className="cursor-pointer hover-scale" size={24} />
+                  </Link>
+                </div>
+
+                {/* 2. SEPET İKONU */}
+                <div className="position-relative">
+                  <Link to="/cart" className="text-white" title="Sepetim">
+                    <ShoppingCart className="cursor-pointer hover-scale" size={24} />
+                  </Link>
+                </div>
+
+                {/* 3. PROFİL VE ÇIKIŞ */}
+                <div className="d-flex align-items-center gap-2 border-start ps-3 ms-2 border-secondary">
+                  <span className="text-white small d-none d-md-block">
+                    {user.name}
+                  </span>
+                  <button
+                    className="btn btn-sm btn-outline-danger d-flex align-items-center gap-2 rounded-pill px-3 ms-2"
+                    onClick={onLogoutClick}
+                    title="Çıkış Yap"
+                  >
+                    <LogOut size={16} />
+                  </button>
+                </div>
+              </>
+            ) : (
+              // --- MİSAFİR KULLANICI ---
+              <div className="d-flex gap-2">
+                <Link to="/login" className="btn btn-sm btn-outline-light rounded-pill px-3 d-flex align-items-center gap-1">
+                  <LogIn size={16} /> Giriş
+                </Link>
+                <Link to="/register" className="btn btn-sm btn-warning rounded-pill px-3 d-flex align-items-center gap-1 text-dark fw-bold">
+                  <UserPlus size={16} /> Kayıt Ol
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+export default Navbar;
