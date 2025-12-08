@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Watch, ShoppingBag, ArrowLeft, Star, Check, ShieldCheck, Truck, MessageSquare, Send, Heart } from 'lucide-react';
+import { Watch, ShoppingBag, ArrowLeft, Star, Check, ShieldCheck, Truck, MessageSquare, Send, Heart, Trash2 } from 'lucide-react';
 import api from '../api';
 
 const ProductDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     
-    // ... (State Tanımlamaları Aynı)
+    // --- State Tanımlamaları ---
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [adding, setAdding] = useState(false);
@@ -21,9 +21,11 @@ const ProductDetail = () => {
     const [reviewSubmitting, setReviewSubmitting] = useState(false);
     const [reviewMessage, setReviewMessage] = useState('');
     const [isUserLoggedIn] = useState(!!localStorage.getItem('token'));
+    const [user_id] = useState(parseInt(localStorage.getItem('user_id'))); // <-- Kullanıcı ID'sini çek
+    const [deletingReviewId, setDeletingReviewId] = useState(null); // <-- Yeni State
 
 
-    // --- VERİ ÇEKME FONKSİYONLARI (Aynı kaldı) ---
+    // --- VERİ ÇEKME FONKSİYONLARI ---
     const fetchReviews = useCallback(async () => {
         try {
             const response = await api.get(`/api/v1/reviews/?watch_id=${id}`); 
@@ -113,6 +115,39 @@ const ProductDetail = () => {
         }
     };
 
+    // --- YORUM SİLME FONKSİYONU ---
+    const handleDeleteReview = async (reviewId) => {
+        if (!window.confirm("Bu yorumu silmek istediğinize emin misiniz?")) return;
+        
+        setDeletingReviewId(reviewId);
+        
+        try {
+            // DELETE isteği: /api/v1/reviews/{reviews_id}
+            await api.delete(`/api/v1/reviews/${reviewId}`);
+            
+            // Başarılı silme sonrası listeyi filtrele
+            setReviews(prevReviews => prevReviews.filter(r => r.ReviewID !== reviewId));
+            alert("Yorum başarıyla silindi!");
+
+        } catch (err) {
+            console.error("Yorum silme hatası:", err.response?.data || err);
+            let errMsg = "Yorum silinirken bir sorun oluştu.";
+            
+            if (err.response) {
+                 if (err.response.status === 401 || err.response.status === 403) {
+                     errMsg = "Bu yorumu silmeye yetkiniz yok (Yalnızca kendi yorumunuzu silebilirsiniz).";
+                 } else if (err.response.data && err.response.data.detail) {
+                     errMsg = err.response.data.detail;
+                 }
+            }
+            alert(`Silme Başarısız: ${errMsg}`);
+
+        } finally {
+            setDeletingReviewId(null);
+        }
+    };
+
+
     // Yorum Gönderme Formu Değişiklik İşleyicisi (Aynı kaldı)
     const handleReviewChange = (e) => {
         const { name, value } = e.target;
@@ -161,9 +196,9 @@ const ProductDetail = () => {
 
     if (loading) return (
        <div className="d-flex justify-content-center align-items-center vh-100">
-          <div className="spinner-border text-dark" role="status">
-             <span className="visually-hidden">Yükleniyor...</span>
-          </div>
+           <div className="spinner-border text-dark" role="status">
+               <span className="visually-hidden">Yükleniyor...</span>
+           </div>
        </div>
     );
 
@@ -189,7 +224,7 @@ const ProductDetail = () => {
             </nav>
             
             <div className="row g-5">
-                {/* SOL TARAF: GALERİ */}
+                {/* SOL TARAF: GALERİ (Aynı kaldı) */}
                 <div className="col-lg-6">{/* ... (Galeri kodları aynı) ... */}
                     <div className="ratio ratio-1x1 rounded-4 shadow-sm d-flex align-items-center justify-content-center bg-white border mb-3 overflow-hidden position-relative">
                         {activeImage ? ( <img src={activeImage} alt={product.ModelName} className="img-fluid p-4" style={{objectFit: 'contain', transition: 'opacity 0.3s ease-in-out'}} /> ) : ( <Watch size={120} strokeWidth={1} className="text-muted opacity-25" /> )}
@@ -201,15 +236,13 @@ const ProductDetail = () => {
                     </div>
                 </div>
 
-                {/* SAĞ TARAF: BİLGİLER */}
+                {/* SAĞ TARAF: BİLGİLER (Aynı kaldı) */}
                 <div className="col-lg-6">
                     <div className="ps-lg-4">
-                        {/* 🔥 DEĞİŞTİRİLEN KISIM: Marka Adı eklendi */}
                         <p className="text-dark fw-bold mb-0 text-uppercase letter-spacing-1 small">
                             {product.brand ? product.brand.BrandName : "ÖZEL KOLEKSİYON"}
                         </p>
                         <h1 className="fw-bold display-5 mb-2 text-dark">{product.ModelName}</h1>
-                        {/* Eski <p className="text-muted mb-3 fs-5">{product.Brand ? product.Brand.BrandName : "Özel Koleksiyon"}</p> satırı kaldırıldı veya isteğe bağlı olarak sadece koleksiyon adını göstermek için basitleştirilebilir. */}
                         
                         <div className="d-flex align-items-center mb-4">
                             <span className="small">
@@ -225,10 +258,10 @@ const ProductDetail = () => {
                         </div>
                         
                         <p className="text-muted mb-4 lead" style={{fontSize: '1rem', lineHeight: '1.7'}}>
-                            {product.Description || "Bu ürün için henüz detaylı açıklama girilmemiş. Ancak kalitesi ve şıklığıyla sizi büyüleyeceğinden eminiz."}
+                            {product.Description || "Bu ürün için henüz detaylı açıklama girilmemiş. Ancak kalitesi ve şıklığıyla sizi büyüteceğinden eminiz."}
                         </p>
 
-                        {/* Özellikler Kutusu */}
+                        {/* Özellikler Kutusu (Aynı kaldı) */}
                         <div className="bg-light p-4 rounded-4 mb-4 border border-light-subtle">
                             <h6 className="fw-bold mb-3 text-dark">Teknik Özellikler</h6>
                             <div className="row g-2">
@@ -239,7 +272,7 @@ const ProductDetail = () => {
                             </div>
                         </div>
 
-                        {/* Butonlar */}
+                        {/* Butonlar (Aynı kaldı) */}
                         <div className="d-flex gap-3 mb-4">
                             <button 
                                 onClick={handleAddToCart}
@@ -259,7 +292,7 @@ const ProductDetail = () => {
                             </button>
                         </div>
 
-                        {/* Güvenlik Rozetleri */}
+                        {/* Güvenlik Rozetleri (Aynı kaldı) */}
                         <div className="d-flex gap-4 border-top pt-4">
                             <div className="d-flex align-items-center text-muted small"><Truck size={20} className="me-2 text-dark"/> Hızlı Kargo</div>
                             <div className="d-flex align-items-center text-muted small"><ShieldCheck size={20} className="me-2 text-dark"/> %100 Orijinal</div>
@@ -277,7 +310,7 @@ const ProductDetail = () => {
                         <MessageSquare size={28} className="me-2"/> Müşteri Yorumları ({reviews.length})
                     </h3>
 
-                    {/* 1. Yorum Ekleme Formu */}
+                    {/* 1. Yorum Ekleme Formu (Aynı kaldı) */}
                     <div className="card shadow-sm mb-5 p-4">
                         <h5 className="fw-bold border-bottom pb-2 mb-3">Yorumunuzu Yazın</h5>
                         
@@ -344,24 +377,47 @@ const ProductDetail = () => {
                                     const rawRating = review.Rating; 
                                     const ratingValue = Math.round(parseFloat(rawRating));
                                     
-                                    // 🎯 KRİTİK ÇÖZÜM: full_name gelmezse, Email'i kullan.
+                                    // Kullanıcı adını al
                                     const userName = review.user 
                                         ? (review.user.full_name || review.user.FullName) 
                                         : "Anonim Kullanıcı";
-                                    
+                                        
+                                    // Yorumu silmek için gerekli olan ID'ler:
+                                    const isAuthor = isUserLoggedIn && user_id === review.UserID;
+                                    const isDeleting = deletingReviewId === review.ReviewID;
+
                                     return (
                                         <div key={review.ReviewID} className="list-group-item bg-white border-bottom py-4">
                                             <div className="d-flex w-100 justify-content-between">
-                                                {/* DÜZELTİLDİ: full_name, FullName veya email kullanılıyor */}
+                                                
                                                 <h6 className="mb-1 fw-bold">{userName}</h6>
                                                 
-                                                <small className="text-muted">{new Date(review.CreatedAt || Date.now()).toLocaleDateString()}</small>
+                                                <div className="d-flex align-items-center">
+                                                    <small className="text-muted me-3">{new Date(review.CreatedAt || Date.now()).toLocaleDateString()}</small>
+                                                    
+                                                    {/* 🚨 YORUM SİLME BUTONU 🚨 */}
+                                                    {isAuthor && (
+                                                        <button
+                                                            onClick={() => handleDeleteReview(review.ReviewID)}
+                                                            className="btn btn-link text-danger p-0 border-0"
+                                                            disabled={isDeleting}
+                                                            title="Yorumu Sil"
+                                                        >
+                                                            {isDeleting ? (
+                                                                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                                            ) : (
+                                                                <Trash2 size={16} />
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
+
                                             </div>
                                             
                                             <div className="text-warning mb-2">
-                                                {/* Dolu yıldızlar (Rating kadar) */}
+                                                {/* Dolu yıldızlar */}
                                                 {[...Array(ratingValue)].map((_, i) => <Star key={i} size={16} fill="currentColor" className="me-1"/>)}
-                                                {/* Boş yıldızlar (5 - Rating kadar) */}
+                                                {/* Boş yıldızlar */}
                                                 {[...Array(5 - ratingValue)].map((_, i) => <Star key={i} size={16} className="text-muted me-1"/>)}
                                             </div>
                                             

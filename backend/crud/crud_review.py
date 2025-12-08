@@ -1,6 +1,7 @@
 from typing import List, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import delete
 from fastapi import HTTPException, status
 from sqlalchemy.orm import selectinload 
 
@@ -84,5 +85,9 @@ class CRUDReview(CRUDBase[reviews, ReviewCreate, ReviewUpdate]):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sadece kendi yorumunuzu silebilirsiniz.")
         
         await self.remove(db, id=review_id)
-
+    async def remove_by_watch_id(self, db: AsyncSession, *, watch_id: int) -> None:
+        """Belirtilen WatchID'ye ait tüm yorumları siler."""
+        stmt = delete(reviews).where(reviews.WatchID == watch_id)
+        await db.execute(stmt)
+        
 review = CRUDReview(reviews)

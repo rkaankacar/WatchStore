@@ -25,9 +25,9 @@ const Footer = () => {
           <div className="col-md-2 col-6">
             <h6 className="fw-bold mb-3 text-warning">Kurumsal</h6>
             <ul className="list-unstyled small text-muted">
-              <li className="mb-2"><Link to="/" className="text-decoration-none text-white">Hakkımızda</Link></li>
-              <li className="mb-2"><Link to="/" className="text-decoration-none text-white">Kariyer</Link></li>
-              <li className="mb-2"><Link to="/" className="text-decoration-none text-white">İletişim</Link></li>
+              <li className="mb-2"><Link to="/about" className="text-decoration-none text-white">Hakkımızda</Link></li>
+              <li className="mb-2"><Link to="/careers" className="text-decoration-none text-white">Kariyer</Link></li>
+              <li className="mb-2"><Link to="/contact" className="text-decoration-none text-white">İletişim</Link></li>
             </ul>
           </div>
 
@@ -36,7 +36,7 @@ const Footer = () => {
             <ul className="list-unstyled small text-muted">
               <li className="mb-2"><Link to="/" className="text-decoration-none text-white">Sipariş Takibi</Link></li>
               <li className="mb-2"><Link to="/" className="text-decoration-none text-white">İade & Değişim</Link></li>
-              <li className="mb-2"><Link to="/" className="text-decoration-none text-white">S.S.S.</Link></li>
+              <li className="mb-2"><Link to="/faq" className="text-decoration-none text-white">S.S.S.</Link></li>
             </ul>
           </div>
 

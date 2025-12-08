@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
-
+from sqlalchemy import delete
 # CRUDBase'i kullanmıyorsun, bu yüzden bu import kaldırıldı
 # from backend.crud.base import CRUDBase 
 
@@ -111,7 +111,12 @@ class CRUDFavorites:
 
         await db.delete(fav_to_remove)
         await db.commit()
-
+    async def remove_by_watch_id(self, db: AsyncSession, *, watch_id: int) -> None:
+        """Belirtilen WatchID'ye ait tüm favori kayıtlarını siler."""
+        
+        # SORGULAMA: Favorite modelini ve WatchID sütununu kullanarak DELETE sorgusu oluşturma
+        stmt = delete(FavoritesModel).where(FavoritesModel.WatchID == watch_id)
+        await db.execute(stmt)
 
 # 🎯 KRİTİK DÜZELTME 3: CRUD nesnesini çakışmayacak şekilde adlandır
 favorites_crud = CRUDFavorites()

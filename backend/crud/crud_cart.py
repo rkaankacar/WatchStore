@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload 
 from fastapi import HTTPException, status
-
+from sqlalchemy import delete
 from backend.crud.base import CRUDBase
 # 🎯 DÜZELTME 1: Model sınıfını CartModel olarak yeniden adlandırarak içeri alıyoruz
 from backend.models import users, watches 
@@ -149,6 +149,9 @@ class CRUDCart(CRUDBase[CartModel, CartCreate, CartUpdate]):
         # Silme işlemini CRUDBase'e devret
         await super().remove(db, id=cart_id)
 
-
+    async def remove_by_watch_id(self, db: AsyncSession, *, watch_id: int) -> None:
+        """Belirtilen WatchID'ye ait tüm sepet öğelerini siler."""
+        stmt = delete(CartModel).where(CartModel.WatchID == watch_id)
+        await db.execute(stmt)
 # 🎯 KRİTİK DÜZELTME 3: CRUD nesnesini çakışmayacak şekilde adlandırıyoruz
 cart_crud = CRUDCart(CartModel)

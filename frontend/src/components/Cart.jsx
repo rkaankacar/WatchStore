@@ -142,6 +142,11 @@ const Cart = () => {
 
                     {/* Bilgi Alanı */}
                     <div className="ms-3 flex-grow-1">
+                      {item.watch && item.watch.brand && (
+                            <div className="text-dark fw-bold small mb-0 text-uppercase letter-spacing-1">
+                                {item.watch.brand.BrandName}
+                            </div>
+                        )}
                       <h5 className="mb-1 fw-bold text-dark">
                         {item.watch ? item.watch.ModelName : "Bilinmeyen Ürün"}
                       </h5>

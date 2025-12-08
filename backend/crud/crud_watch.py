@@ -3,13 +3,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.future import select
+from sqlalchemy import delete
 from sqlalchemy.orm import selectinload
 
 # Modelleri import et
 from backend.crud.base import CRUDBase
 from backend.models import watches, watches_images, reviews, users
 from backend.schemas import WatchCreate, WatchUpdate, WatchImageCreate, WatchImageUpdate
-
+from backend.crud.crud_cart import cart_crud
+from backend.crud.crud_review import review
+from backend.crud.crud_favorite import favorites_crud
 ModelType = TypeVar("ModelType", bound=watches)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
@@ -72,7 +75,12 @@ class CRUDWatch(CRUDBase[watches, WatchCreate, WatchUpdate]):
         return await super().update(db, db_obj=watch, obj_in=obj_in)
 
     async def remove_or_404(self, db: AsyncSession, *, id: int) -> None:
+        
         await self.get_or_404(db, id=id)
+        await cart_crud.remove_by_watch_id(db, watch_id=id)
+        await review.remove_by_watch_id(db, watch_id=id)
+        await watch_image.remove_by_watch_id(db, watch_id=id)
+        await favorites_crud.remove_by_watch_id(db, watch_id=id)
         await super().remove(db, id=id)
         
     async def get_multi_by_gender(
@@ -109,5 +117,10 @@ watch = CRUDWatch(watches)
 
 class CRUDWatchImage(CRUDBase[watches_images, WatchImageCreate, WatchImageUpdate]):
     pass
+
+    async def remove_by_watch_id(self, db: AsyncSession, *, watch_id: int) -> None:
+        """Belirtilen WatchID'ye ait tüm resimleri siler."""
+        stmt = delete(watches_images).where(watches_images.WatchID == watch_id)
+        await db.execute(stmt)
 
 watch_image = CRUDWatchImage(watches_images)

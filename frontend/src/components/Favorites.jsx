@@ -22,8 +22,9 @@ const Favorites = () => {
             setFavoriteItems(response.data);
         } catch (err) {
             console.error("Favoriler yüklenirken hata:", err);
+            // Token süresi dolarsa yönlendirme (api.js'teki interceptor zaten yapıyor ama burada da yakalayalım)
             if (err.response && err.response.status === 401) {
-                navigate('/login');
+                // Interceptor'ın yönlendirmesine izin veriyoruz
             } else {
                 setError("Favorileriniz yüklenirken bir sorun oluştu.");
             }
@@ -33,12 +34,18 @@ const Favorites = () => {
     };
 
     const handleRemoveFavorite = async (favId) => {
+        // favId'nin boş olmadığından emin ol
+        if (!favId) {
+            alert("Hata: Favori kimliği eksik.");
+            return;
+        }
 
         if (!window.confirm("Bu ürünü favorilerden kaldırmak istediğine emin misin?")) return;
 
-        // 🎯 FIX 1: Gelen ID'yi temiz bir tam sayıya dönüştürüyoruz.
+        // Gönderilecek ID'yi tamsayıya zorla
         const numericFavId = parseInt(favId, 10);
 
+        // Geçersiz ID kontrolü (fazladan güvenlik)
         if (isNaN(numericFavId) || numericFavId <= 0) {
             alert("Hata: Geçersiz favori kimliği.");
             return;
@@ -50,21 +57,33 @@ const Favorites = () => {
             // DELETE isteğini gönderiyoruz
             await api.delete(`/api/v1/favorites/${numericFavId}`);
 
-            // 🎯 CRITICAL FIX 2: Filtreleme işlemini doğru ID anahtarını bularak yapıyoruz.
+            // BAŞARILI SİLME SONRASI LİSTE GÜNCELLEMESİ
             setFavoriteItems(prev => prev.filter(item => {
-                // item.favoriteID veya item.favoriteid anahtarlarından hangisi varsa onu al
-                const itemId = item.favoriteID || item.favoriteid;
+                // Sadece FAVORITEID anahtarını kullanarak listeden filtrele
+                const itemId = item.FavoriteID; 
 
                 // Sayısal olarak karşılaştır
-                return itemId !== numericFavId;
+                return parseInt(itemId, 10) !== numericFavId;
             }));
 
         } catch (err) {
             console.error("Silme hatası:", err);
-            let errMsg = "Silinirken bir hata oluştu. Lütfen sunucu loglarını kontrol edin.";
-            if (err.response && err.response.data && err.response.data.detail) {
-                errMsg = err.response.data.detail;
+            
+            let errMsg = "Silinirken beklenmeyen bir hata oluştu.";
+            
+            if (err.response) {
+                if (err.response.data && err.response.data.detail) {
+                    errMsg = err.response.data.detail;
+                } else if (err.response.data && err.response.data.error && err.response.data.error.message) {
+                    errMsg = err.response.data.error.message;
+                } else if (err.response.status === 404) {
+                     // Kayıt bulunamadıysa, listeyi yenile
+                     errMsg = "Silmek istediğiniz kayıt bulunamadı. Liste yenileniyor.";
+                     fetchFavorites(); 
+                     return; 
+                }
             }
+            
             alert(`Silme Başarısız: ${errMsg}`);
 
         } finally {
@@ -121,11 +140,17 @@ const Favorites = () => {
 
                         if (!product) return null;
 
-                        // 🎯 FIX 3: Silme ve key için kullanılacak ID'yi al
-                        const favId = item.favoriteID || item.favoriteid;
+                        // KRİTİK: FavoriteID'yi kullan
+                        const favId = item.FavoriteID;
+                        
+                        // ID yoksa hatayı konsola bas ve bu öğeyi atla
+                        if (!favId) {
+                            console.error("Hata: Favori öğesi için FavoriteID bulunamadı.", item);
+                            return null;
+                        }
 
                         return (
-                            <div key={favId || product.WatchID} className="col-md-6 col-lg-4">
+                            <div key={favId} className="col-md-6 col-lg-4">
                                 <div className="card h-100 border-0 shadow-sm overflow-hidden flex-row hover-shadow transition-all">
 
                                     {/* Sol Taraf: Resim */}
