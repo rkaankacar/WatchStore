@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api import deps
 from backend.crud.crud_order import order as order_crud 
 from backend.schemas import OrderResponse
-from backend.models import Users, Orders 
+from backend.models import users, orders 
 
 router = APIRouter()
 
@@ -17,7 +17,7 @@ async def create_order(
     *,
     shipping_address: str, 
     db: AsyncSession = Depends(deps.get_async_db),
-    current_user: Users = Depends(deps.get_current_user)
+    current_user: users = Depends(deps.get_current_user)
 ) -> Any:
     """
     Sepetteki ürünleri alır ve Siparişe dönüştürür.
@@ -37,7 +37,7 @@ async def read_my_orders(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(deps.get_async_db),
-    current_user: Users = Depends(deps.get_current_user)
+    current_user: users = Depends(deps.get_current_user)
 ) -> Any:
     """
     Sadece giriş yapmış kullanıcının kendi geçmiş siparişlerini listeler.
@@ -53,7 +53,7 @@ async def read_my_orders(
 async def read_order_detail(
     order_id: int,
     db: AsyncSession = Depends(deps.get_async_db),
-    current_user: Users = Depends(deps.get_current_user)
+    current_user: users = Depends(deps.get_current_user)
 ) -> Any:
     """
     Tek bir siparişin detayını getirir. Başkasının siparişini göstermez (Kontrol CRUD'da).

@@ -1,5 +1,4 @@
-# backend/schemas.py
-from pydantic import BaseModel, Field, ConfigDict, EmailStr, HttpUrl
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
@@ -94,7 +93,6 @@ class WatchUpdate(BaseModel):
     stock: Optional[int] = Field(None, alias="Stock", ge=0)
     brand_id: Optional[int] = Field(None, alias="BrandID")
     image_url: Optional[str] = Field(None, alias="ImageUrl")
-    # Diğer alanlar da buraya eklenebilir...
 
 class WatchSimpleResponse(WatchBase):
     id: int = Field(..., alias="WatchID")
@@ -107,7 +105,7 @@ class WatchSimpleResponse(WatchBase):
 
 
 # =============================================================================
-# 2. FULL RESPONSE MODELLERİ (İLİŞKİLER BURADA)
+# 2. FULL RESPONSE MODELLERİ & TİCARİ MODELLER
 # =============================================================================
 
 # --- REVIEW (YORUMLAR) ---
@@ -127,7 +125,7 @@ class ReviewResponse(ReviewBase):
     user_id: int = Field(..., alias="UserID")
     watch_id: int = Field(..., alias="WatchID")
     created_at: datetime = Field(..., alias="CreatedAt")
-
+    
     user: Optional[UserSimpleResponse] = None 
     watch: Optional[WatchSimpleResponse] = None
 
@@ -195,7 +193,35 @@ class OrderResponse(OrderBase):
     user: Optional[UserSimpleResponse] = None
     order_details: List[OrderDetailResponse] = []
     
+    # Yeni: Payment ilişkisini ekleyelim (Order detayında Payment'ı görmek isteyebiliriz)
+    # payments: List["PaymentResponse"] = [] # Forward reference gerekli olabilir
+
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+# --- PAYMENT (ÖDEME KAYITLARI) ---
+class PaymentBase(BaseModel):
+    order_id: int = Field(..., alias="OrderID")
+    user_id: int = Field(..., alias="UserID")
+    
+    amount: Decimal = Field(..., decimal_places=2, description="Tahsil edilen miktar")
+    status: str = Field(..., description="Ödeme durumu (Pending, Successful, Failed, Refunded)")
+
+    iyzico_ref_id: Optional[str] = Field(None, alias="IyzicoRefId", max_length=100)
+    conversation_id: str = Field(..., alias="ConversationID", max_length=100)
+    auth_code: Optional[str] = Field(None, alias="AuthCode", max_length=50)
+
+    raw_response: Optional[dict] = Field(None, description="Iyzico'dan dönen JSON cevabının tamamı")
+
+
+class PaymentResponse(PaymentBase):
+    id: int = Field(..., alias="PaymentID")
+    payment_date: datetime = Field(..., alias="PaymentDate")
+    
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    
+# Forward reference'ı düzeltmek için (Eğer OrderResponse'a PaymentResponse eklendiyse)
+# OrderResponse.model_rebuild()
 
 
 # =============================================================================
@@ -216,24 +242,60 @@ class UserResponse(UserSimpleResponse):
     
 
 # =============================================================================
-# 4. AUTH & TOKEN SCHEMAS (YENİ)
+# 4. AUTH & FAVORITES SCHEMAS
 # =============================================================================
 
 class Token(BaseModel):
     access_token: str
     token_type: str
-    role: str      # Frontend yönlendirmesi için
-    user_id: int   # State yönetimi için
+    role: str       # Frontend yönlendirmesi için
+    user_id: int    # State yönetimi için
     
-# 1. Kullanıcıdan gelen veri (Sadece saat ID'si yeterli)
 class FavoriteCreate(BaseModel):
     watch_id: int
 
-# 2. Bizim döneceğimiz veri
 class FavoriteResponse(BaseModel):
-    favoriteid: int
+    FavoriteID: int = Field(..., alias="FavoriteID") 
+    
     UserID: int
     WatchID: int
+    
+    user: Optional[UserSimpleResponse] = None 
+    watch: Optional[WatchSimpleResponse] = None 
+    
+    model_config = ConfigDict(
+        from_attributes=True, 
+        populate_by_name=True
+    )
 
-    class Config:
-        from_attributes = True
+# =============================================================================
+# 5. IYZICO ENTEGRASYON SCHEMALARI (YENİ EKLEMELER) 🚀
+# =============================================================================
+
+# --- 5.1 Adres Verisi (Iyzico'ya gönderilecek basit adres formatı) ---
+class AddressDataSchema(BaseModel):
+    """Sipariş/Fatura Adresi Verisi."""
+    full_name: str 
+    address: str
+    city: str
+    zip: str
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- 5.2 Frontend'den gelen Iyzico Başlatma Verisi ---
+class AddressAndUserInfoSchema(BaseModel):
+    """
+    Frontend'den gelen adres, GSM ve TC kimlik bilgisi (Iyzico için kritik).
+    """
+    # Adres bilgileri
+    full_name: str = Field(..., description="Alıcının tam adı.")
+    address: str = Field(..., description="Açık adres.")
+    city: str = Field(..., description="Şehir.")
+    zip: str = Field(..., description="Posta kodu.")
+    
+    # Iyzico için zorunlu kullanıcı bilgileri
+    gsm_number: str = Field(..., description="GSM Numarası.")
+    identity_number: str = Field(..., description="TC Kimlik Numarası (veya yurtdışı ID).")
+    
+    model_config = ConfigDict(from_attributes=True)

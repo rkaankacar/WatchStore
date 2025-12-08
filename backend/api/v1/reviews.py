@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api import deps
 from backend.crud.crud_review import review as review_crud # CRUD'u import et
 from backend.schemas import ReviewCreate, ReviewUpdate, ReviewResponse
-from backend.models import Users, Reviews # Artık sadece Users modeline ihtiyacımız var
+from backend.models import users, reviews # Artık sadece Users modeline ihtiyacımız var
 
 router = APIRouter()
 
@@ -34,7 +34,7 @@ async def create_review(
     *,
     review_in: ReviewCreate,
     db: AsyncSession = Depends(deps.get_async_db),
-    current_user: Users = Depends(deps.get_current_user)
+    current_user: users = Depends(deps.get_current_user)
 ) -> Any:
     """
     Sadece giriş yapmış kullanıcılar yorum yapabilir.
@@ -52,7 +52,7 @@ async def create_review(
 async def delete_review(
     review_id: int,
     db: AsyncSession = Depends(deps.get_async_db),
-    current_user: Users = Depends(deps.get_current_user)
+    current_user: users = Depends(deps.get_current_user)
 ) -> None:
     """
     Sadece giriş yapmış kullanıcılar kendi yorumlarını silebilir.

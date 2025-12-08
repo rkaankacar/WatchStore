@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api import deps
-from backend.crud.crud_cart import cart as cart_crud # Sadece CRUD'u çağırıyoruz
+from backend.crud.crud_cart import cart_crud
 from backend.schemas import CartCreate, CartUpdate, CartResponse
-from backend.models import Users 
+from backend.models import users 
 # HTTPException artık endpoint'te kullanılmayacağı için importu kaldırılabilir.
 
 router = APIRouter()
@@ -16,7 +16,7 @@ async def read_cart_items(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(deps.get_async_db),
-    current_user: Users = Depends(deps.get_current_user)
+    current_user: users = Depends(deps.get_current_user)
 ) -> Any:
     """
     CRUD'dan sadece kullanıcının sepetini getirir.
@@ -32,7 +32,7 @@ async def add_to_cart(
     *,
     cart_in: CartCreate,
     db: AsyncSession = Depends(deps.get_async_db),
-    current_user: Users = Depends(deps.get_current_user)
+    current_user: users = Depends(deps.get_current_user)
 ) -> Any:
     """
     Kullanıcının sepetine ürün ekler veya mevcut ürünü günceller (Tüm mantık CRUD'da).
@@ -48,7 +48,7 @@ async def update_cart_item(
     cart_id: int,
     cart_in: CartUpdate,
     db: AsyncSession = Depends(deps.get_async_db),
-    current_user: Users = Depends(deps.get_current_user)
+    current_user: users = Depends(deps.get_current_user)
 ) -> Any:
     """
     Sepet öğesini günceller. Varlık ve sahiplik kontrolü CRUD'a taşındı.
@@ -67,7 +67,7 @@ async def update_cart_item(
 async def delete_cart_item(
     cart_id: int,
     db: AsyncSession = Depends(deps.get_async_db),
-    current_user: Users = Depends(deps.get_current_user)
+    current_user: users = Depends(deps.get_current_user)
 ) -> None:
     """
     Sepet öğesini siler. Varlık ve sahiplik kontrolü CRUD'a taşındı.

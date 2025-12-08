@@ -1,120 +1,125 @@
-from typing import Optional, TypeVar, Generic
+from typing import Optional, TypeVar, List, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from passlib.context import CryptContext
-from fastapi import HTTPException, status # <-- HATA FIIRLATMAYI BURAYA TAŞIYORUZ
-
-from backend.crud.base import CRUDBase
-from backend.models import Users
-from backend.schemas import UserCreate, UserUpdate
+from fastapi import HTTPException, status 
 from pydantic import BaseModel
 
-# CRUDBase'den gelen T modelini Generic olarak tanımlama
-ModelType = TypeVar("ModelType", bound=Users)
+from backend.crud.base import CRUDBase
+from backend.models import users
+from backend.schemas import UserCreate, UserUpdate
+
+# Şifre hashleme context'i
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# TypeVar'lar
+ModelType = TypeVar("ModelType", bound=users)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-class CRUDUser(CRUDBase[Users, UserCreate, UserUpdate]):
+class CRUDUser(CRUDBase[users, UserCreate, UserUpdate]):
     
-    # 1. KULLANICI OLUŞTURMA (Taşındı)
-    async def create_user_with_check(self, db: AsyncSession, *, obj_in: UserCreate) -> Users:
+    # -------------------------------------------------------------
+    # 1. TEMEL KONTROL METOTLARI
+    # -------------------------------------------------------------
+    
+    async def get_by_email(self, db: AsyncSession, *, email: str) -> Optional[users]:
+        """Email ile kullanıcı bul (Async)"""
+        # Burada obj_in'i kullanmadığımız için sorun yok.
+        query = select(users).where(users.Email == email) 
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    # -------------------------------------------------------------
+    # 2. ÖZEL CREATE METOTLARI
+    # -------------------------------------------------------------
+    
+    async def create_user_with_check(self, db: AsyncSession, *, obj_in: UserCreate) -> users:
         """
         Email kontrolü yapar, varsa 400 hatası fırlatır ve sonra kullanıcıyı hashleyerek oluşturur.
         """
-        # Email kontrolü (Endpoint'ten taşındı)
+        # 1. Email kontrolü
+        # obj_in.email kullanıyoruz. (Şema Pydantic standardına uyduğu için.)
         existing_user = await self.get_by_email(db, email=obj_in.email)
         
         if existing_user:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, # 400 Bad Request
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Bu email adresi zaten kullanılıyor."
             )
             
-        # Orijinal create metodunun mantığı
-        create_data = obj_in.model_dump(by_alias=True)
-        plain_password = create_data.pop("Password")
+        # 2. Veriyi hazırlar ve ŞİFREYİ HASH'LER
+        create_data = obj_in.model_dump(by_alias=True, exclude_unset=True) 
+        
+        # 🎯 FIX 1: Şifre anahtarını BÜYÜK HARFLE (Alias adı) çekiyoruz.
+        # Bu, Password alanının Users modeline iki kez gitmesini önler.
+        plain_password = create_data.pop("Password") 
         hashed_password = pwd_context.hash(plain_password)
         
-        db_obj = Users(**create_data, Password=hashed_password)
+        # 3. Model nesnesini oluşturur. (create_data'da artık şifre yok, anahtarlar Model ile uyumlu.)
+        db_obj = users(**create_data, Password=hashed_password) 
+        
+        # 4. Kaydetme işlemi
+        db.add(db_obj)
+        await db.commit() 
+        await db.refresh(db_obj)
+        return db_obj
+
+    async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> users:
+        # Bu metot da aynı sorunu yaşıyordu, düzeltildi.
+        create_data = obj_in.model_dump(by_alias=True)
+        # 🎯 FIX 2: Şifre anahtarını BÜYÜK HARFLE (Alias adı) çekiyoruz.
+        plain_password = create_data.pop("Password") 
+        hashed_password = pwd_context.hash(plain_password)
+        
+        db_obj = users(**create_data, Password=hashed_password)
         
         db.add(db_obj)
         await db.commit() 
         await db.refresh(db_obj)
         return db_obj
 
-    # 3. KULLANICI DETAYI (Taşındı: 404 kontrolü)
+    # -------------------------------------------------------------
+    # 3. KULLANICI DETAY VE KONTROL METOTLARI (Aynen Kalır)
+    # -------------------------------------------------------------
+    
     async def get_or_404(self, db: AsyncSession, *, id: int) -> ModelType:
-        """
-        Kullanıcıyı ID ile getirir. Bulunamazsa 404 HTTP hatası fırlatır.
-        """
-        user = await self.get(db, id=id)
+        """Kullanıcıyı ID ile getirir. Bulunamazsa 404 HTTP hatası fırlatır."""
+        user = await self.get(db, id=id) 
         if user is None:
-            # Hata fırlatma (Endpoint'ten taşındı)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Kullanıcı bulunamadı"
             )
         return user
         
-    # 4. KULLANICI GÜNCELLEME (Taşındı: 404 kontrolü)
     async def update_or_404(
         self,
         db: AsyncSession,
         *,
         id: int, 
         obj_in: UserUpdate 
-    ) -> Users:
-        
-        # Varlık kontrolü (404 fırlatma)
+    ) -> users:
+        """Kullanıcıyı günceller (404 kontrolü ile)"""
         user = await self.get_or_404(db, id=id)
-
-        # Güncelleme işlemini gerçekleştirme
         return await super().update(db, db_obj=user, obj_in=obj_in)
 
-    # 5. KULLANICI SİLME (Taşındı: 404 kontrolü)
     async def remove_or_404(self, db: AsyncSession, *, id: int) -> None:
-        """
-        Kullanıcıyı ID ile siler. Bulunamazsa 404 HTTP hatası fırlatır.
-        """
-        # Varlık kontrolü (404 fırlatma)
+        """Kullanıcıyı siler (404 kontrolü ile)"""
         await self.get_or_404(db, id=id)
-
-        # Silme işlemini gerçekleştirme
         await super().remove(db, id=id)
-
-    # Aşağıdaki fonksiyonlar zaten CRUD'daydı (değişmedi)
-    async def get_by_email(self, db: AsyncSession, *, email: str) -> Optional[Users]:
-        """Email ile kullanıcı bul (Async)"""
-        query = select(Users).where(Users.Email == email)
-        result = await db.execute(query)
-        return result.scalars().first()
-
-    async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> Users:
-         # Bu fonksiyon, artık create_user_with_check tarafından sarılacağı için
-         # orijinal haliyle bırakılabilir (Base.CRUD'u çağırır). 
-         # Ancak biz endpoint'te direk create_user_with_check'i kullanacağız.
-         # (Orijinal hali, şifre hashleme mantığı içerdiği için bu dosyadaki CREATE'i kullanıyoruz.)
-        create_data = obj_in.model_dump(by_alias=True)
-        plain_password = create_data.pop("Password")
-        hashed_password = pwd_context.hash(plain_password)
         
-        db_obj = Users(**create_data, Password=hashed_password)
-        
-        db.add(db_obj)
-        await db.commit() 
-        await db.refresh(db_obj)
-        return db_obj
-        
-    async def authenticate(self, db: AsyncSession, *, email: str, password: str) -> Optional[Users]:
+    # 4. AUTH METOTLARI
+    async def authenticate(self, db: AsyncSession, *, email: str, password: str) -> Optional[users]:
         """Login kontrolü (Async)"""
         user = await self.get_by_email(db, email=email)
         if not user:
             return None
-        if not pwd_context.verify(password, user.Password):
+        # Not: Modelde büyük harf olduğu için user.Password kullanılır.
+        if not pwd_context.verify(password, user.Password): 
             return None
             
         return user
 
-user = CRUDUser(Users)
+user = CRUDUser(users)

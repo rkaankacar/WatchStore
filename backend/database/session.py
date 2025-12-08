@@ -3,7 +3,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy import MetaData
-from core.config import settings  # config dosyasından import
+from backend.core.config import settings  # config dosyasından import
 
 # --- SQLAlchemy Temelleri ---
 

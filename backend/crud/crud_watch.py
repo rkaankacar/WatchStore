@@ -1,25 +1,58 @@
-from typing import Optional, TypeVar, Generic
+from typing import TypeVar, List, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 
+# Modelleri import et
 from backend.crud.base import CRUDBase
-from backend.models import Watches, Watches_Images
+from backend.models import watches, watches_images, reviews, users
 from backend.schemas import WatchCreate, WatchUpdate, WatchImageCreate, WatchImageUpdate
 
-# CRUDBase'den gelen T modelini Generic olarak tanımlama (T = Watches)
-ModelType = TypeVar("ModelType", bound=Watches)
+ModelType = TypeVar("ModelType", bound=watches)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 # --- SAATLER ---
-class CRUDWatch(CRUDBase[Watches, WatchCreate, WatchUpdate]):
+class CRUDWatch(CRUDBase[watches, WatchCreate, WatchUpdate]):
     
-    # 3. Endpoint için: Saat detayını getirir, bulunamazsa hata fırlatır.
+    # Tüm ilişkileri yükleyen temel sorgu yapısı (MissingGreenlet çözümü)
+    def _select_with_relationships(self):
+        # KRİTİK DÜZELTME: Yorumları ve Yorumların içindeki kullanıcıları yüklüyoruz.
+        return select(watches).options(
+            selectinload(watches.brand),
+            selectinload(watches.images),
+            selectinload(watches.reviews).selectinload(reviews.user)
+        )
+    
+    # -------------------------------------------------------------
+    # 1. GET METOTLARI (EAGER LOADING EKLEME)
+    # -------------------------------------------------------------
+    
+    async def get(self, db: AsyncSession, id: Any) -> Optional[watches]:
+        query = self._select_with_relationships().where(watches.WatchID == id)
+        result = await db.execute(query)
+        return result.scalars().first()
+
+    async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> List[watches]:
+        query = self._select_with_relationships().offset(skip).limit(limit)
+        result = await db.execute(query)
+        return result.scalars().all()
+
+    # -------------------------------------------------------------
+    # 2. CREATE METODUNU OVERRIDE EDİYORUZ
+    # -------------------------------------------------------------
+    async def create(self, db: AsyncSession, *, obj_in: WatchCreate) -> watches:
+        db_obj = await super().create(db, obj_in=obj_in)
+        return await self.get(db, id=db_obj.WatchID)
+
+
+    # -------------------------------------------------------------
+    # 3. ÖZEL FİLTRE METOTLARI
+    # -------------------------------------------------------------
+
     async def get_or_404(self, db: AsyncSession, *, id: int) -> ModelType:
-        """
-        Saati ID ile getirir. Bulunamazsa 404 HTTP hatası fırlatır.
-        """
         watch = await self.get(db, id=id)
         if watch is None:
             raise HTTPException(
@@ -28,36 +61,53 @@ class CRUDWatch(CRUDBase[Watches, WatchCreate, WatchUpdate]):
             )
         return watch
 
-    # 4. Endpoint için: Saati günceller, önce varlığını kontrol eder.
     async def update_or_404(
         self,
         db: AsyncSession,
         *,
-        id: int, # Güncellenecek saatin ID'si
-        obj_in: WatchUpdate # Güncelleme verisi
-    ) -> Watches:
-        
-        # Önce saatin varlığını kontrol et ve 404 fırlat
+        id: int,
+        obj_in: WatchUpdate
+    ) -> watches:
         watch = await self.get_or_404(db, id=id)
-
-        # Varsa, CRUDBase'deki orijinal update metodunu çağır
         return await super().update(db, db_obj=watch, obj_in=obj_in)
 
-    # 5. Endpoint için: Saati siler, önce varlığını kontrol eder.
     async def remove_or_404(self, db: AsyncSession, *, id: int) -> None:
-        """
-        Saati ID ile siler. Bulunamazsa 404 HTTP hatası fırlatır.
-        """
-        # Önce saatin varlığını kontrol et (get_or_404 zaten hata fırlatacak)
         await self.get_or_404(db, id=id)
-
-        # Varsa, CRUDBase'deki orijinal remove metodunu çağır
         await super().remove(db, id=id)
+        
+    async def get_multi_by_gender(
+        self,
+        db: AsyncSession,
+        *,
+        gender: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[watches]:
+        query = self._select_with_relationships()
+        query = query.where(watches.Gender == gender)
+        query = query.offset(skip).limit(limit)
+        result = await db.execute(query)
+        return result.scalars().all()
 
-watch = CRUDWatch(Watches)
+    async def get_multi_by_brand(
+        self,
+        db: AsyncSession,
+        *,
+        brand_id: int,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[watches]:
+        query = self._select_with_relationships()
+        query = query.where(watches.BrandID == brand_id)
+        query = query.offset(skip).limit(limit)
+        result = await db.execute(query)
+        return result.scalars().all()
 
-# --- SAAT RESİMLERİ (Değişmedi) ---
-class CRUDWatchImage(CRUDBase[Watches_Images, WatchImageCreate, WatchImageUpdate]):
+# --- INSTANCE TANIMLAMALARI (En alta taşındı) ---
+
+watch = CRUDWatch(watches)
+
+class CRUDWatchImage(CRUDBase[watches_images, WatchImageCreate, WatchImageUpdate]):
     pass
 
-watch_image = CRUDWatchImage(Watches_Images)
+watch_image = CRUDWatchImage(watches_images)

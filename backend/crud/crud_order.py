@@ -5,21 +5,21 @@ from datetime import datetime
 from fastapi import HTTPException, status # <-- status'ü de ekledik
 
 from backend.crud.base import CRUDBase
-from backend.models import Orders, OrdersDetails, Cart, Watches, Users # Users modelini de import etmeliyiz (opsiyonel)
+from backend.models import orders, ordersdetails, cart, watches, users # Users modelini de import etmeliyiz (opsiyonel)
 from backend.schemas import OrderCreate, OrderUpdate, OrderDetailCreate, OrderDetailUpdate
 
 # Sepet ve Saat CRUD'larını import ediyoruz
-from backend.crud.crud_cart import cart as cart_crud 
+from backend.crud.crud_cart import cart_crud 
 from backend.crud.crud_watch import watch as watch_crud 
 
 # --- SİPARİŞ DETAYLARI (Değişmedi) ---
-class CRUDOrderDetail(CRUDBase[OrdersDetails, OrderDetailCreate, OrderDetailUpdate]):
+class CRUDOrderDetail(CRUDBase[ordersdetails, OrderDetailCreate, OrderDetailUpdate]):
     pass
 
-order_detail = CRUDOrderDetail(OrdersDetails)
+order_detail = CRUDOrderDetail(ordersdetails)
 
 # --- SİPARİŞLER (ANA SINIF) ---
-class CRUDOrder(CRUDBase[Orders, OrderCreate, OrderUpdate]):
+class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
     
     # Yeni Fonksiyon: 3. Endpoint için güvenlik ve varlık kontrolünü sağlar.
     async def get_order_by_user_id_or_404(
@@ -27,8 +27,8 @@ class CRUDOrder(CRUDBase[Orders, OrderCreate, OrderUpdate]):
         db: AsyncSession, 
         *, 
         order_id: int, 
-        current_user: Users
-    ) -> Orders:
+        current_user: users
+    ) -> orders:
         """
         Siparişi ID ile getirir. Yoksa 404, kullanıcıya ait değilse 403 fırlatır.
         """
@@ -58,7 +58,7 @@ class CRUDOrder(CRUDBase[Orders, OrderCreate, OrderUpdate]):
         db: AsyncSession, 
         user_id: int, 
         shipping_address: str
-    ) -> Orders:
+    ) -> orders:
         # ... (Önceki iş mantığı, stok kontrolü vb. burada kalır)
         cart_items = await cart_crud.get_multi_by_user(db, user_id=user_id)
 
@@ -95,7 +95,7 @@ class CRUDOrder(CRUDBase[Orders, OrderCreate, OrderUpdate]):
             db.add(watch)
 
         # Ana Sipariş Kaydını Oluştur
-        new_order = Orders(
+        new_order = orders(
             UserID=user_id,
             OrderDate=datetime.now(),
             TotalAmount=total_amount,
@@ -109,7 +109,7 @@ class CRUDOrder(CRUDBase[Orders, OrderCreate, OrderUpdate]):
 
         # Sipariş Detaylarını Kaydet
         for detail in order_details_data:
-            new_detail = OrdersDetails(
+            new_detail = ordersdetails(
                 OrderID=new_order.OrderID,
                 WatchID=detail["WatchID"],
                 Quantity=detail["Quantity"],
@@ -127,10 +127,10 @@ class CRUDOrder(CRUDBase[Orders, OrderCreate, OrderUpdate]):
         
         return new_order
     
-    async def get_multi_by_user(self, db: AsyncSession, user_id: int, skip: int = 0, limit: int = 100) -> List[Orders]:
+    async def get_multi_by_user(self, db: AsyncSession, user_id: int, skip: int = 0, limit: int = 100) -> List[orders]:
         query = select(self.model).where(self.model.UserID == user_id).offset(skip).limit(limit)
         result = await db.execute(query)
         return result.scalars().all()
 
 
-order = CRUDOrder(Orders)
+order = CRUDOrder(orders)

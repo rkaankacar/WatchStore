@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database.session import AsyncSessionLocal
 from backend.core.config import settings
 from backend.crud.crud_user import user as user_crud
-from backend.models import Users
+from backend.models import users
 
 # 1. Token Nereden Gelecek?
 reusable_oauth2 = OAuth2PasswordBearer(
@@ -32,7 +32,7 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
 async def get_current_user(
     db: AsyncSession = Depends(get_async_db),
     token: str = Depends(reusable_oauth2)
-) -> Users:
+) -> users:
     """
     Token'ı doğrular ve kullanıcıyı veritabanından getirir.
     """
@@ -69,8 +69,8 @@ async def get_current_user(
 
 # 4. YETKİ KONTROLÜ (Admin Bekçisi) - YENİ EKLENDİ
 async def get_current_admin_user(
-    current_user: Users = Depends(get_current_user),
-) -> Users:
+    current_user: users = Depends(get_current_user),
+) -> users:
     """
     Sadece 'admin' rolüne sahip kullanıcıların geçmesine izin verir.
     """
@@ -78,5 +78,5 @@ async def get_current_admin_user(
         raise HTTPException(
             status_code=403, 
             detail="Bu işlem için Admin yetkisi gerekiyor!"
-        )
+        ) 
     return current_user

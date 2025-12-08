@@ -1,14 +1,15 @@
 from sqlalchemy import Column, Integer, String, DateTime,func
 from sqlalchemy.orm import relationship
-from database.session import Base
+from backend.database.session import Base
 
 
-class Users(Base):
+class users(Base):
     
-    __tablename__ = "Users"
+    __tablename__ = "users"
+    
      
     UserID = Column(Integer, primary_key=True, index=True)
-    FullName = Column(String, nullable=False)
+    FullName = Column("FullName",String, nullable=False)
     Email = Column(String, unique=True, index=True, nullable=False)
     Password = Column(String, nullable=False)
     Phone = Column(String, unique=True, index=True, nullable=True)
@@ -20,10 +21,11 @@ class Users(Base):
     
     # --- İLİŞKİLER (Users Tarafı) ---
     # Bir kullanıcının birden fazla SİPARİŞİ olur (çoğul)
-    orders = relationship("Orders", back_populates="user")
+    orders = relationship("orders", back_populates="user")
     
     # Bir kullanıcının birden fazla YORUMU olur (çoğul)
-    reviews = relationship("Reviews", back_populates="user")
+    reviews = relationship("reviews", back_populates="user")
     
     # Bir kullanıcının sepetinde birden fazla ÖĞE olur (çoğul)
-    cart_items = relationship("Cart", back_populates="user")
+    cart_items = relationship("cart", back_populates="user")
+    favorite_items = relationship("favorites", back_populates="user")
