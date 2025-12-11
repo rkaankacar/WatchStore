@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from backend.crud.base import CRUDBase
 from backend.models import users
-from backend.schemas import UserCreate, UserUpdate
+from backend.schemas import UserCreate, UserUpdate, UserSimpleResponse
 
 # Şifre hashleme context'i
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -85,7 +85,7 @@ class CRUDUser(CRUDBase[users, UserCreate, UserUpdate]):
     # -------------------------------------------------------------
     
     async def get_or_404(self, db: AsyncSession, *, id: int) -> ModelType:
-        """Kullanıcıyı ID ile getirir. Bulunamazsa 404 HTTP hatası fırlatır."""
+        
         user = await self.get(db, id=id) 
         if user is None:
             raise HTTPException(
@@ -122,4 +122,64 @@ class CRUDUser(CRUDBase[users, UserCreate, UserUpdate]):
             
         return user
 
+    async def change_password_with_confirm(
+        self,
+        db: AsyncSession,
+        *,
+        user_id: int,
+        current_password: str,
+        new_password: str,
+        new_password_again: str
+    ) -> users:
+        """
+        Kullanıcının şifresini değiştirir.
+        1) Mevcut şifre doğru mu kontrol eder.
+        2) Yeni şifre tekrar ile aynı mı kontrol eder.
+        3) Yeni şifreyi hashleyip günceller.
+        """
+
+        # 1. Kullanıcı var mı kontrol et
+        user = await self.get_or_404(db, id=user_id)
+
+        # 2. Mevcut şifre doğru mu?
+        if not pwd_context.verify(current_password, user.Password):
+            raise HTTPException(
+                status_code=400,
+                detail="Mevcut şifre yanlış!"
+            )
+
+        # 3. Yeni şifre ile tekrarı aynı mı?
+        if new_password != new_password_again:
+            raise HTTPException(
+                status_code=400,
+                detail="Yeni şifreler aynı değil!"
+            )
+
+        # 4. Yeni şifre mevcut şifre ile aynı mı? (Güvenlik kontrolü)
+        if pwd_context.verify(new_password, user.Password):
+            raise HTTPException(
+                status_code=400,
+                detail="Yeni şifre mevcut şifre ile aynı olamaz!"
+            )
+
+        # 5. Yeni şifreyi hashle
+        hashed_password = pwd_context.hash(new_password)
+
+        # 6. Şifreyi güncelle
+        user.Password = hashed_password
+
+        # 7. DB'ye kaydet
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+        return user
+
+    async def get_or_profile(self, db: AsyncSession, *, id: int) -> UserSimpleResponse:
+        user = await self.get(db, id=id)
+        if not user:
+            raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+        
+        return UserSimpleResponse.model_validate(user, from_attributes=True)
+    
 user = CRUDUser(users)

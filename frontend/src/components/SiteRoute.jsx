@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'; 
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { setNavigator } from '../api'; // 👈 Sadece setNavigator import edildi
+import { setNavigator } from '../api'; 
 
 import Home from './Home'
 import Login from './Login'
@@ -16,57 +16,70 @@ import About from './About';
 import Careers from './Careers';
 import Contact from './Contact';
 import FAQ from './FAQ';
+import Profile from './Profile';// <-- Profile bileşeninizi buraya eklediğinizden emin olun
+
 
 export default function SiteRoute({ handleLogin, user }) {
-  
-  const navigate = useNavigate(); 
-  
-  useEffect(() => {
-    // navigate hook'unu api.js'e tanıtıyoruz
-    setNavigator(navigate);
-  }, [navigate]);
+  
+  const navigate = useNavigate(); 
+  
+  useEffect(() => {
+    // navigate hook'unu api.js'e tanıtıyoruz
+    setNavigator(navigate);
+  }, [navigate]);
 
-  const isAdmin = user?.role === 'admin';
+  const isAuthenticated = !!user; // Kullanıcının giriş yapıp yapmadığını kontrol eder
+  const isAdmin = user?.role === 'admin';
 
-  return (
-    <Routes>
-      <Route path="/" element={<Home />} />
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
 
-      <Route path="/about" element={<About />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/careers" element={<Careers />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/faq" element={<FAQ />} />
 
-      <Route path="/careers" element={<Careers />} />
+      <Route path="/login" element={<Login onLogin={handleLogin} />} />
+      <Route path="/register" element={<Register />} />
 
-      <Route path="/contact" element={<Contact />} />
-       
-      <Route path="/faq" element={<FAQ />} />
+      <Route path="/cart" element={<Cart />} />
+      <Route path="/favorites" element={<Favorites />} />
 
-      <Route path="/login" element={<Login onLogin={handleLogin} />} />
+      <Route path="/collections" element={<Collections />} />
+      <Route path="/collectiondetail" element={<CollectionDetail />} />
+      <Route path="/product/:id" element={<ProductDetail />} />
+      <Route path="/checkout" element={<Checkout />} />
 
-      <Route path="/register" element={<Register />} />
 
-      <Route path="/cart" element={<Cart />} />
+      {/* 1. PROFİL KORUMASI */}
+      <Route
+        path="/profil"
+        element={
+          isAuthenticated ? (
+            <Profile user={user} /> // user prop'unu Profile bileşenine aktarıyoruz
+          ) : (
+            <Navigate to="/login" replace /> // Giriş yapmamışsa Login sayfasına yönlendir
+          )
+        }
+      />
 
-      <Route path="/favorites" element={<Favorites />} />
 
-      <Route path="/collections" element={<Collections />} />
 
-      <Route path="/collectiondetail" element={<CollectionDetail />} />
-
-      <Route path="/product/:id" element={<ProductDetail />} />
-
-      <Route path="/checkout" element={<Checkout />} />
-
-      {/* ADMIN KORUMASI */}
-      <Route
-        path="/admin"
-        element={
-          isAdmin ? (
-            <Admin />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-    </Routes>
-  )
+      {/* ADMIN KORUMASI */}
+      <Route
+        path="/admin"
+        element={
+          isAdmin ? (
+            <Admin />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+        
+        {/* 404 (Eşleşmeyen tüm yollar için) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
 }

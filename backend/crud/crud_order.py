@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
 from fastapi import HTTPException, status # <-- status'ü de ekledik
-
+from decimal import Decimal
 from backend.crud.base import CRUDBase
 from backend.models import orders, ordersdetails, cart, watches, users # Users modelini de import etmeliyiz (opsiyonel)
 from backend.schemas import OrderCreate, OrderUpdate, OrderDetailCreate, OrderDetailUpdate
@@ -66,7 +66,7 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sepetiniz boş, sipariş verilemez.")
         
         # Karmaşık iş mantığı burada devam ediyor...
-        total_amount = 0
+        total_amount = Decimal("0.0")
         order_details_data = []
 
         for item in cart_items:
@@ -81,11 +81,11 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
                      detail=f"Stok yetersiz: {watch.ModelName} (Kalan: {watch.Stock})"
                  )
 
-            line_total = watch.Price * item.Quantity
+            line_total = Decimal(str(watch.Price)) * item.Quantity
             total_amount += line_total
             
             order_details_data.append({
-                "WatchID": watch.id,
+                "WatchID": watch.WatchID,
                 "Quantity": item.Quantity,
                 "UnitPrice": watch.Price
             })
@@ -119,7 +119,7 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
 
         # Sepeti Boşalt
         for item in cart_items:
-            await cart_crud.remove(db, id=item.id)
+            await cart_crud.remove(db, id=item.CartID)
 
         # Tüm işlemleri onayla
         await db.commit()

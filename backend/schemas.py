@@ -65,10 +65,24 @@ class UserUpdate(BaseModel):
     city: Optional[str] = Field(None, alias="City")
     country: Optional[str] = Field(None, alias="Country")
 
-class UserSimpleResponse(UserBase):
+class UserSimpleResponse(BaseModel):
     id: int = Field(..., alias="UserID")
+    full_name: str = Field(..., alias="FullName")
+    email: EmailStr = Field(..., alias="Email")
+    phone: Optional[str] = Field(None, alias="Phone")
+    address: Optional[str] = Field(None, alias="Address")
+    city: Optional[str] = Field(None, alias="City")
+    country: Optional[str] = Field(None, alias="Country")
+    role: str = Field(..., alias="Role")
     created_at: datetime = Field(..., alias="CreatedAt")
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        extra="ignore",
+        ignored_types=(list, dict)
+    )
+
 
 
 # --- WATCH BASE & SIMPLE ---
@@ -249,7 +263,8 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     role: str       # Frontend yönlendirmesi için
-    user_id: int    # State yönetimi için
+    user_id: int  
+    name: str# State yönetimi için
     
 class FavoriteCreate(BaseModel):
     watch_id: int
@@ -299,3 +314,10 @@ class AddressAndUserInfoSchema(BaseModel):
     identity_number: str = Field(..., description="TC Kimlik Numarası (veya yurtdışı ID).")
     
     model_config = ConfigDict(from_attributes=True)
+    
+class UserChangePassword(BaseModel):
+    current_password: str 
+    new_password: str 
+    new_password_again: str 
+
+    

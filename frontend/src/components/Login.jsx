@@ -28,14 +28,14 @@ const Login = ({ onLogin }) => {
       localStorage.setItem('token', response.data.access_token);
       localStorage.setItem('user_role', response.data.role);
       localStorage.setItem('user_id', response.data.user_id); 
+      localStorage.setItem('user_name', response.data.name);
 
       // 2. İsmi e-postadan türet (Geçici çözüm, backendden gelmiyorsa)
-      const nameFromEmail = formData.email.split('@')[0];
-      const capitalizedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+    ;
       
       // Ana App state'ini güncelle
       onLogin({ 
-        name: capitalizedName, 
+        name: response.data.name, 
         email: formData.email,
         role: response.data.role,
         id: response.data.user_id

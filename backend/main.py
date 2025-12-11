@@ -5,6 +5,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.sql import text # <-- Düzgün SQL çalıştırmak için kritik
+from dotenv import load_dotenv
+load_dotenv()  # .env dosyasını oku
 
 # Python'un proje kök dizinini görmesi için yol ayarı (Zaten doğru)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -26,7 +28,7 @@ from backend.models.users import users
 
 # --- ROUTER IMPORTLARI ---
 from backend.routers import auth, utils
-from backend.api.v1 import brands, cart, orders, reviews, watches, users, favorites
+from backend.api.v1 import brands, cart, orders, reviews, watches, users, favorites, create_payment
 
 # --- 1. Uygulama Yaratma Fabrika Fonksiyonu ---
 def create_application() -> FastAPI:
@@ -75,7 +77,9 @@ def create_application() -> FastAPI:
     app.include_router(orders.router, prefix="/api/v1/orders", tags=["Orders"])
     app.include_router(favorites.router, prefix="/api/v1/favorites", tags=["Favorites"])
     app.include_router(utils.router, prefix="/api/v1", tags=["Utils"])
-   
+    app.include_router(create_payment.router, prefix="/api/v1/payment", tags=["Payment"])
+    
+    #
     return app
 
 # Uygulamayı ayağa kaldır

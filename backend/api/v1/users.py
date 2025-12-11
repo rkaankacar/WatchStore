@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api import deps
 from backend.crud.crud_user import user as user_crud
-from backend.schemas import UserCreate, UserUpdate, UserResponse, UserSimpleResponse
+from backend.schemas import UserChangePassword, UserCreate, UserUpdate, UserResponse, UserSimpleResponse
 
 router = APIRouter()
 
@@ -49,7 +49,7 @@ async def read_user(
     return user
 
 # 4. KULLANICI GÜNCELLEME (Temizlendi: 404 kontrolü kaldırıldı)
-@router.put("/{user_id}", response_model=UserSimpleResponse)
+@router.put("/update/{user_id}", response_model=UserSimpleResponse)
 async def update_user(
     user_id: int,
     user_in: UserUpdate,
@@ -74,3 +74,23 @@ async def delete_user(
     # Yeni CRUD metodunu kullanıyoruz. Bulunamazsa 404'ü CRUD fırlatır.
     await user_crud.remove_or_404(db, id=user_id)
     return None
+
+@router.put("/change-password")
+async def change_password(
+    body: UserChangePassword,
+    db: AsyncSession = Depends(deps.get_async_db),
+    current_user=Depends(deps.get_current_user)
+):
+    return await user_crud.change_password_with_confirm(
+       db,
+       user_id=current_user.UserID,
+       current_password=body.current_password,
+       new_password=body.new_password,
+       new_password_again=body.new_password_again
+    )
+    
+@router.get("/users/{user_id}", response_model=UserSimpleResponse)
+async def get_user(user_id: int, db: AsyncSession = Depends(deps.get_async_db)):
+    return await user_crud.get_or_profile(db, id=user_id)
+
+

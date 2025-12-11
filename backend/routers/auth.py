@@ -43,5 +43,7 @@ async def login(
         ),
         "token_type": "bearer",
         "role": user.Role,      # <--- BU EKSİKTİ, EKLENDİ
-        "user_id": user.UserID  # <--- BU EKSİKTİ, EKLENDİ
+        "user_id": user.UserID,  # <--- BU EKSİKTİ, EKLENDİ
+        "name": user.FullName,
+    
     }

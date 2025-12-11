@@ -96,7 +96,7 @@ const Home = () => {
 
                                             <h5 className="card-title fw-bold mb-2 text-dark text-truncate">{product.ModelName}</h5>
 
-                                            <p className="text-primary fs-4 fw-bold mb-3">
+                                            <p className="text-dark fs-4 fw-bold mb-3">
                                                 ₺{parseFloat(product.Price).toLocaleString()}
                                             </p>
 

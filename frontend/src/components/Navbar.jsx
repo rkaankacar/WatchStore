@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingCart, User, Menu, X, Watch, LogOut, UserPlus, LogIn, LayoutDashboard, Heart } from 'lucide-react'; // Heart ikonunu ekledik
+import { ShoppingCart, User, Menu, X, Watch, LogOut, UserPlus, LogIn, LayoutDashboard, Heart } from 'lucide-react'; 
 import { Link, useNavigate } from 'react-router-dom';
 
 const Navbar = ({ user, handleLogout }) => {
@@ -53,7 +53,7 @@ const Navbar = ({ user, handleLogout }) => {
             {user ? (
               // --- GİRİŞ YAPMIŞ KULLANICI ---
               <>
-                {/* 1. FAVORİLER İKONU (YENİ EKLENDİ) */}
+                {/* 1. FAVORİLER İKONU */}
                 <div className="position-relative">
                   <Link to="/favorites" className="text-white" title="Favorilerim">
                     <Heart className="cursor-pointer hover-scale" size={24} />
@@ -67,19 +67,25 @@ const Navbar = ({ user, handleLogout }) => {
                   </Link>
                 </div>
 
-                {/* 3. PROFİL VE ÇIKIŞ */}
-                <div className="d-flex align-items-center gap-2 border-start ps-3 ms-2 border-secondary">
-                  <span className="text-white small d-none d-md-block">
-                    {user.name}
-                  </span>
-                  <button
-                    className="btn btn-sm btn-outline-danger d-flex align-items-center gap-2 rounded-pill px-3 ms-2"
-                    onClick={onLogoutClick}
-                    title="Çıkış Yap"
-                  >
-                    <LogOut size={16} />
-                  </button>
-                </div>
+                {/* 3. PROFİL VE ÇIKIŞ (DEĞİŞİKLİK BURADA YAPILDI) */}
+                
+                {/* Kullanıcı Adı Linki */}
+                <Link to="/profil" className="text-decoration-none text-white" title="Profilim">
+                  <div className="d-flex align-items-center gap-2 border-start ps-3 ms-2 border-secondary">
+                    <span className="text-white small d-none d-md-block">
+                      {user.name}
+                    </span>
+                  </div>
+                </Link>
+                
+                {/* Çıkış Butonu */}
+                <button
+                  className="btn btn-sm btn-outline-danger d-flex align-items-center gap-2 rounded-pill px-3 ms-2"
+                  onClick={onLogoutClick}
+                  title="Çıkış Yap"
+                >
+                  <LogOut size={16} />
+                </button>
               </>
             ) : (
               // --- MİSAFİR KULLANICI ---
