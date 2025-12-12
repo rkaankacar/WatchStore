@@ -197,7 +197,7 @@ class OrderCreate(OrderBase):
     user_id: int = Field(..., alias="UserID")
 
 class OrderUpdate(BaseModel):
-    status: Optional[str] = Field(None, alias="Status")
+    Status: Optional[str]
 
 class OrderResponse(OrderBase):
     id: int = Field(..., alias="OrderID")

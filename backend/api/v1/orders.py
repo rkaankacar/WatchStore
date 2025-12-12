@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api import deps
 from backend.crud.crud_order import order as order_crud 
-from backend.schemas import OrderResponse
+from backend.schemas import OrderResponse, OrderUpdate
 from backend.models import users, orders 
 
 router = APIRouter()
@@ -66,3 +66,59 @@ async def read_order_detail(
     )
     
     return order
+
+@router.get("/admin/all", response_model=List[OrderResponse])
+async def read_all_orders(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(deps.get_async_db),
+    # Yetkilendirme (Tek işi bu)
+    current_admin_user: users = Depends(deps.get_current_admin_user) 
+) -> Any:
+    """
+    Tüm siparişleri listeler. Yalnızca Adminler erişebilir.
+    """
+    # Tek çağrı: CRUD'a yönlendir
+    orders = await order_crud.get_multi(db, skip=skip, limit=limit)
+    return orders
+
+
+# 5. SİPARİŞ DURUMUNU GÜNCELLE (ADMIN)
+@router.patch("/admin/{order_id}/status", response_model=OrderResponse)
+async def update_order_status(
+    order_id: int,
+    order_in: OrderUpdate, # Sadece 'status' alanını içeriyor
+    db: AsyncSession = Depends(deps.get_async_db),
+    # Yetkilendirme (Tek işi bu)
+    current_admin_user: users = Depends(deps.get_current_admin_user) 
+) -> Any:
+    """
+    Siparişin durumunu günceller.
+    """
+    # Tek çağrı: Yeni CRUD metoduna yönlendir. Varlık kontrolü CRUD içinde yapılır.
+    updated_order = await order_crud.update_status(
+        db, 
+        order_id=order_id, 
+        status_in=order_in
+    )
+    return updated_order
+
+@router.patch("/{order_id}/status", response_model=OrderResponse)
+async def update_my_order_status(
+    order_id: int,
+    order_in: OrderUpdate, # Sadece 'status' alanını içeriyor, bu kez 'İptal Edildi' olacak
+    db: AsyncSession = Depends(deps.get_async_db),
+    current_user: users = Depends(deps.get_current_user) # Kullanıcı yetkilendirmesi
+) -> Any:
+    # CRUD'a yönlendiriyoruz. CRUD katmanında tüm kontrolleri yapmalıyız:
+    # 1. Sipariş var mı?
+    # 2. Sipariş bu kullanıcıya mı ait?
+    # 3. Yeni durum 'İptal Edildi' mi ve eski durum 'Hazırlanıyor' mu?
+    
+    updated_order = await order_crud.update_user_order_status(
+        db, 
+        order_id=order_id, 
+        status_in=order_in,
+        current_user=current_user
+    )
+    return updated_order

@@ -1,11 +1,13 @@
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload 
 from datetime import datetime
-from fastapi import HTTPException, status # <-- status'ü de ekledik
+from fastapi import HTTPException, status
 from decimal import Decimal
 from backend.crud.base import CRUDBase
-from backend.models import orders, ordersdetails, cart, watches, users # Users modelini de import etmeliyiz (opsiyonel)
+# İLİŞKİSEL YÜKLEME İÇİN GEREKLİ MODELLER
+from backend.models import orders, ordersdetails, cart, watches, users 
 from backend.schemas import OrderCreate, OrderUpdate, OrderDetailCreate, OrderDetailUpdate
 
 # Sepet ve Saat CRUD'larını import ediyoruz
@@ -20,8 +22,57 @@ order_detail = CRUDOrderDetail(ordersdetails)
 
 # --- SİPARİŞLER (ANA SINIF) ---
 class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
-    
-    # Yeni Fonksiyon: 3. Endpoint için güvenlik ve varlık kontrolünü sağlar.
+
+    # KRİTİK DÜZELTME: EAGER LOADING YARDIMCI METODU
+    def _get_eager_options(self):
+        """
+        MissingGreenlet hatasını çözmek için gerekli 3 katmanlı Eager Loading zincirini döndürür:
+        Order -> User
+        Order -> OrderDetails -> Watch -> Brand
+        """
+        return [
+            selectinload(self.model.user), # 1. Katman: User
+            
+            # 2. Katman: OrderDetails'i yükle
+            selectinload(self.model.order_details) 
+                # 3. Katman: OrderDetail içindeki Saati yükle
+                .selectinload(ordersdetails.watch) 
+                
+                # 4. Katman: Saatin içindeki Markayı yükle (SON EKSİK PARÇA)
+                .selectinload(watches.brand) 
+        ]
+
+    # -----------------------------------------------
+    # 1. ADMIN LISTELEME (Zaten Düzeltildi)
+    async def get_multi(self, db: AsyncSession, skip: int = 0, limit: int = 100) -> List[orders]:
+        """Tüm siparişleri, gerekli tüm ilişkisel verileri (Brand dahil) önceden yükleyerek getirir."""
+        query = (
+            select(self.model)
+            .options(*self._get_eager_options())
+            .offset(skip)
+            .limit(limit)
+        )
+        
+        result = await db.execute(query)
+        return result.scalars().unique().all()
+        
+    # -----------------------------------------------
+    # 2. KULLANICI LİSTELEME (Zaten Düzeltildi)
+    async def get_multi_by_user(self, db: AsyncSession, user_id: int, skip: int = 0, limit: int = 100) -> List[orders]:
+        """Belirli bir kullanıcıya ait siparişleri, gerekli tüm ilişkisel verileri önceden yükleyerek getirir."""
+        query = (
+            select(self.model)
+            .where(self.model.UserID == user_id)
+            .options(*self._get_eager_options())
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await db.execute(query)
+        return result.scalars().unique().all()
+
+
+    # -----------------------------------------------
+    # 3. KULLANICI DETAY GÖRÜNTÜLEME (Zaten Düzeltildi)
     async def get_order_by_user_id_or_404(
         self, 
         db: AsyncSession, 
@@ -30,19 +81,24 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
         current_user: users
     ) -> orders:
         """
-        Siparişi ID ile getirir. Yoksa 404, kullanıcıya ait değilse 403 fırlatır.
+        Siparişi ID ile getirir (Eager Loading kullanarak). Yoksa 404, kullanıcıya ait değilse 403 fırlatır.
         """
-        # Siparişi bul
-        order = await self.get(db, id=order_id) 
-
-        # 1. Varlık Kontrolü (Endpoint'ten taşındı)
+        query = (
+            select(self.model)
+            .where(self.model.OrderID == order_id)
+            .options(*self._get_eager_options()) # Tüm ilişkileri yüklüyoruz
+        )
+        result = await db.execute(query)
+        order = result.scalars().first()
+        
+        # 1. Varlık Kontrolü
         if not order:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
                 detail="Sipariş bulunamadı"
             )
             
-        # 2. Sahiplik Kontrolü (Endpoint'ten taşındı)
+        # 2. Sahiplik Kontrolü
         if order.UserID != current_user.UserID:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, 
@@ -50,16 +106,18 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
             )
             
         return order
-
-
-    # Diğer mevcut fonksiyonlar (Değişmedi/Zaten temizdi)
+    
+    # -----------------------------------------------
+    # 4. SİPARİŞ OLUŞTURMA (DEĞİŞMEDİ)
     async def create_from_cart(
         self, 
         db: AsyncSession, 
         user_id: int, 
         shipping_address: str
     ) -> orders:
-        # ... (Önceki iş mantığı, stok kontrolü vb. burada kalır)
+        # ... (Stok kontrolü ve sipariş oluşturma mantığı aynı kalır) ...
+        # Bu fonksiyonun içi, önceki gönderdiğiniz haliyle korunmuştur.
+
         cart_items = await cart_crud.get_multi_by_user(db, user_id=user_id)
 
         if not cart_items:
@@ -126,11 +184,97 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
         await db.refresh(new_order)
         
         return new_order
+
+
+    # -----------------------------------------------
+    # 5. DURUM GÜNCELLEME (KRİTİK DÜZELTME YAPILDI)
+    async def update_status(
+    self,
+    db: AsyncSession,
+    *,
+    order_id: int,
+    status_in: OrderUpdate 
+    ) -> orders:
+        """Siparişin durumunu günceller ve güncel siparişi Eager Loading ile döndürür."""
     
-    async def get_multi_by_user(self, db: AsyncSession, user_id: int, skip: int = 0, limit: int = 100) -> List[orders]:
-        query = select(self.model).where(self.model.UserID == user_id).offset(skip).limit(limit)
+    # 1. Siparişi çek (Basit çekme yeterli, sadece varlık kontrolü için)
+        order = await self.get(db, id=order_id) 
+
+        if not order:
+         raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Sipariş bulunamadı"
+        )
+
+    # 2. Güncelleme İşlemini Gerçekleştir (self.update içinde commit olmadığı varsayımıyla devam ediyoruz)
+    # db_obj'yi güncelleyen metod çağrılır.
+        updated_order_lazy = await self.update(db, db_obj=order, obj_in=status_in)
+
+    
+        query = (
+        select(self.model)
+        .where(self.model.OrderID == order_id)
+        .options(*self._get_eager_options()) 
+    )
         result = await db.execute(query)
-        return result.scalars().all()
+        updated_order_eager = result.scalars().first()
+    
+    
+        if not updated_order_eager:
+            raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Sipariş güncellendi ancak ilişkili veri çekilemedi. Veritabanı hatası."
+         )
 
+        return updated_order_eager
+            
+            
+             
+    async def update_user_order_status(
+    self,
+    db: AsyncSession,
+    *,
+    order_id: int,
+    status_in: OrderUpdate,
+    current_user: users
+) -> orders:
+  
+    # 1. Siparişi Eager Loading ile çek (Response için tüm veriler yüklü olmalı)
+        query = select(self.model).where(self.model.OrderID == order_id).options(*self._get_eager_options())
+        result = await db.execute(query)
+        order = result.scalars().first()
 
+    # Varlık kontrolü
+        if not order:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sipariş bulunamadı.")
+    
+    # Sahiplik kontrolü
+        if order.UserID != current_user.UserID:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bu siparişe erişim yetkiniz yok.")
+
+    # İptal etme kuralı kontrolü
+        new_status = status_in.model_dump(exclude_unset=True, by_alias=True).get("Status")
+    
+        if new_status == 'İptal Edildi':
+            if order.Status != 'Hazırlanıyor':
+                raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Sipariş '{order.Status}' durumunda olduğu için iptal edilemez."
+            )
+            
+        # Güncelleme ve Commit
+            order.Status = new_status
+            db.add(order)
+            await db.commit()
+            await db.refresh(order)
+        
+        # Stokları geri ekleme mantığı BURAYA EKLENMELİDİR (Gerekirse)
+        # Eğer iptal edilen ürünlerin stoğu geri ekleniyorsa, o mantık buraya gelir.
+        
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bu endpoint sadece 'İptal Edildi' durumu için kullanılabilir.")
+
+    # Eager Loading ile çekilmiş siparişi döndür
+    # Zaten sorguyu Eager Loading ile yaptığımız için 'order' nesnesini döndürebiliriz.
+        return order
 order = CRUDOrder(orders)

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ShoppingBag, Trash2, Plus, LayoutDashboard, RefreshCw, UploadCloud, Tag, Building } from 'lucide-react'; 
+import { Package, ShoppingBag, Trash2, Plus, LayoutDashboard, RefreshCw, UploadCloud, Tag, Building, Truck } from 'lucide-react'; 
 import api from '../api';
 
 const Admin = () => {
     // Sekme Yönetimi
-    const [activeTab, setActiveTab] = useState('products'); 
+    const [activeTab, setActiveTab] = useState('orders'); // Başlangıç sekmesini siparişler yaptık
 
     // Veri State'leri
     const [products, setProducts] = useState([]);
@@ -51,12 +51,14 @@ const Admin = () => {
         try {
             const [prodRes, orderRes, brandsRes] = await Promise.all([
                 api.get('/api/v1/watches/'),
-                api.get('/api/v1/orders/'),
+                // Admin'e özel TÜM siparişleri çeken endpoint
+                api.get('/api/v1/orders/admin/all'), 
                 api.get('/api/v1/brands/') 
             ]);
 
             setProducts(prodRes.data);
-            setOrders(orderRes.data);
+            // Güncel veriyi al ve ID'ye göre tersten sırala (en yeni üstte)
+            setOrders(orderRes.data.sort((a, b) => b.OrderID - a.OrderID)); 
             setBrands(brandsRes.data); 
 
             // Formdaki varsayılan BrandID'yi ilk markanın ID'si yap
@@ -69,12 +71,47 @@ const Admin = () => {
 
         } catch (err) {
             console.error("Admin verileri çekilemedi:", err);
+            if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+                 alert("Yetkiniz yok veya oturumunuz sona erdi. Lütfen tekrar giriş yapın.");
+            }
         } finally {
             setLoading(false);
         }
     };
+
+    // --- SİPARİŞ DURUMU GÜNCELLEME (Hızlı State Güncellemesi) ---
+    const handleStatusUpdate = async (orderId, newStatus) => {
+        // Kullanıcıdan onay al
+        if (!window.confirm(`Sipariş #${orderId} durumunu "${newStatus}" olarak güncellemek istediğinize emin misiniz?`)) return;
+
+        setSubmitting(true);
+
+        try {
+            const payload = {
+                Status: newStatus 
+            };
+
+            // API'yi çağır ve güncel sipariş objesini bekle (Backend artık Eager Loading ile dönüyor)
+            const response = await api.patch(`/api/v1/orders/admin/${orderId}/status`, payload);
+            const updatedOrder = response.data; 
+
+            // Local state'i doğrudan güncelleyerek anlık değişiklik sağla (fetchData'dan daha hızlı)
+            setOrders(prevOrders => prevOrders.map(order => 
+                order.OrderID === orderId ? updatedOrder : order // Sadece güncellenen siparişi değiştir
+            ).sort((a, b) => b.OrderID - a.OrderID)); 
+
+            console.log(`Sipariş #${orderId} durumu başarıyla "${newStatus}" olarak güncellendi.`);
+            
+        } catch (err) {
+            console.error("Durum güncelleme hatası:", err.response?.data || err);
+            // Hata mesajını kullanıcıya göster
+            alert(`Durum güncelleme başarısız: ${err.response?.data?.detail || err.message || 'Bilinmeyen bir hata oluştu.'}`);
+        } finally {
+            setSubmitting(false);
+        }
+    };
     
-    // --- ÜRÜN FORM İŞLEYİCİSİ ---
+    // --- ÜRÜN FORM İŞLEYİCİSİ (Aynı kaldı) ---
     const handleProductChange = (e) => {
         const { name, value } = e.target;
         setNewProduct(prev => ({
@@ -83,7 +120,7 @@ const Admin = () => {
         }));
     };
 
-    // --- MARKA FORM İŞLEYİCİSİ ---
+    // --- MARKA FORM İŞLEYİCİSİ (Aynı kaldı) ---
     const handleBrandFormChange = (e) => {
         const { name, value } = e.target;
         setNewBrandData(prev => ({
@@ -92,7 +129,7 @@ const Admin = () => {
         }));
     };
 
-    // --- MARKA EKLEME SUBMIT ---
+    // --- MARKA EKLEME SUBMIT (Aynı kaldı) ---
     const handleAddBrandSubmit = async (e) => {
         e.preventDefault();
         setBrandMessage('');
@@ -106,13 +143,12 @@ const Admin = () => {
         
         setSubmitting(true);
         try {
-            // API Bağlantısı: /api/v1/brands/ (POST)
             const response = await api.post('/api/v1/brands/', newBrandData); 
             
             setBrandMessage(`"${response.data.BrandName}" başarıyla eklendi!`);
             setBrandError(false);
             setNewBrandData({ BrandName: '', Country: '', Description: '' });
-            fetchData(); // Marka listesini yenile
+            fetchData(); 
 
         } catch (err) {
             console.error("Marka eklenirken hata oluştu:", err);
@@ -124,7 +160,7 @@ const Admin = () => {
         }
     };
     
-    // --- KAPAK RESMİ YÜKLEME ---
+    // --- KAPAK RESMİ YÜKLEME (Aynı kaldı) ---
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -133,7 +169,6 @@ const Admin = () => {
         formData.append('file', file);
 
         try {
-            // API Bağlantısı: /api/v1/upload/ (POST)
             const response = await api.post('/api/v1/upload/', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
@@ -144,7 +179,7 @@ const Admin = () => {
         }
     };
 
-    // --- GALERİ RESMİ YÜKLEME ---
+    // --- GALERİ RESMİ YÜKLEME (Aynı kaldı) ---
     const handleGalleryUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
@@ -168,11 +203,10 @@ const Admin = () => {
         }
     };
 
-    // --- ÜRÜN KAYDETME SUBMIT ---
+    // --- ÜRÜN KAYDETME SUBMIT (Aynı kaldı) ---
     const handleAddSubmit = async (e) => {
         e.preventDefault();
         
-        // Zorunlu alanlar kontrolü (ModelName, Price, BrandID vb.)
         if (!newProduct.ModelName || !newProduct.Price || !newProduct.Stock || !newProduct.BrandID || !newProduct.CaseMaterial || !newProduct.StrapMaterial || !newProduct.MovementType || !newProduct.WaterResistance) {
              alert("Lütfen Model Adı, Fiyat, Stok ve tüm Teknik Detayları girin!");
              return;
@@ -188,7 +222,6 @@ const Admin = () => {
                 ImageUrl: newProduct.ImageUrl || "https://via.placeholder.com/300",
                 BrandID: parseInt(newProduct.BrandID), 
                 Gender: newProduct.Gender, 
-
                 CaseMaterial: newProduct.CaseMaterial,
                 StrapMaterial: newProduct.StrapMaterial,
                 MovementType: newProduct.MovementType,
@@ -196,11 +229,9 @@ const Admin = () => {
                 Description: newProduct.Description,
             };
 
-            // API Bağlantısı: /api/v1/watches/ (POST)
             const response = await api.post('/api/v1/watches/', payload);
             const createdWatchID = response.data.WatchID || response.data.id;
 
-            // Galeri Resimleri Ekleme
             if (galleryUrls.length > 0) {
                 await Promise.all(galleryUrls.map(url =>
                     api.post('/api/v1/watches/watch_images/', { 
@@ -212,7 +243,6 @@ const Admin = () => {
 
             alert("Ürün başarıyla eklendi! 🎉");
             
-            // Formu sıfırla
             setNewProduct(prev => ({ 
                 ...prev, 
                 ModelName: '', Price: '', Stock: '', ImageUrl: '', Description: '', 
@@ -229,12 +259,11 @@ const Admin = () => {
         }
     };
 
-    // --- ÜRÜN SİLME ---
+    // --- ÜRÜN SİLME (Aynı kaldı) ---
     const handleRemoveProduct = async (id) => {
         if (!window.confirm("Bu ürünü silmek istediğine emin misin?")) return;
 
         try {
-            // API Bağlantısı: /api/v1/watches/:id (DELETE)
             await api.delete(`/api/v1/watches/${id}`);
             setProducts(products.filter(p => p.WatchID !== id));
         } catch (err) {
@@ -261,7 +290,7 @@ const Admin = () => {
                     <LayoutDashboard size={32} className="me-2" />
                     <h2 className="fw-bold m-0 text-dark">Yönetim Paneli</h2>
                 </div>
-                <button onClick={fetchData} className="btn btn-outline-dark btn-sm rounded-pill px-3">
+                <button onClick={fetchData} className="btn btn-outline-dark btn-sm rounded-pill px-3" disabled={submitting}>
                     <RefreshCw size={16} className="me-1" /> Yenile
                 </button>
             </div>
@@ -288,7 +317,7 @@ const Admin = () => {
                             className={`list-group-item list-group-item-action border-0 d-flex align-items-center py-3 ${activeTab === 'orders' ? 'active bg-dark text-white fw-bold' : ''}`}
                             onClick={() => setActiveTab('orders')}
                         >
-                            <ShoppingBag size={18} className="me-2" /> Siparişler
+                            <ShoppingBag size={18} className="me-2" /> Siparişler ({orders.length})
                         </button>
                     </div>
                 </div>
@@ -532,7 +561,7 @@ const Admin = () => {
                         </>
                     )}
 
-                    {/* --- 3. SİPARİŞLER --- */}
+                    {/* --- 3. SİPARİŞLER --- (GÜNCELLENDİ) */}
                     {activeTab === 'orders' && (
                         <div className="card border-0 shadow-sm">
                             <div className="card-header bg-white py-3 border-bottom-0">
@@ -543,25 +572,59 @@ const Admin = () => {
                                     <thead className="table-light">
                                         <tr>
                                             <th className="ps-4">Sipariş No</th>
+                                            <th>Kullanıcı ID</th> 
                                             <th>Tarih</th>
                                             <th>Tutar</th>
+                                            <th>Adres (Kısa)</th> 
                                             <th>Durum</th>
+                                            <th className="text-end pe-4">Eylem</th> 
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {orders.length > 0 ? orders.map(order => (
                                             <tr key={order.OrderID}>
                                                 <td className="ps-4 fw-bold">#{order.OrderID}</td>
-                                                <td>{new Date(order.OrderDate).toLocaleDateString()}</td>
+                                                <td>{order.UserID}</td> 
+                                                <td>{new Date(order.OrderDate).toLocaleDateString('tr-TR')}</td>
                                                 <td className="fw-bold text-success">₺{parseFloat(order.TotalAmount).toLocaleString()}</td>
+                                                <td>{order.ShippingAddress ? order.ShippingAddress.substring(0, 30) + '...' : 'Adres Belirtilmemiş'}</td> 
                                                 <td>
-                                                    <span className={`badge ${order.Status === 'Completed' ? 'bg-success' : 'bg-warning text-dark'}`}>
+                                                    {/* Durum Renklendirmesi */}
+                                                    <span className={`badge ${
+                                                        order.Status === 'Tamamlandı' ? 'bg-success' : 
+                                                        order.Status === 'Kargoda' ? 'bg-primary' : 
+                                                        'bg-warning text-dark' // Hazırlanıyor
+                                                    }`}>
                                                         {order.Status}
                                                     </span>
                                                 </td>
+                                                <td className="text-end pe-4">
+                                                    {/* EYLEM BUTONLARI */}
+                                                    {order.Status === 'Hazırlanıyor' && (
+                                                        <button 
+                                                            className="btn btn-sm btn-outline-primary me-2" 
+                                                            onClick={() => handleStatusUpdate(order.OrderID, 'Kargoda')}
+                                                            disabled={submitting}
+                                                            title="Siparişi kargoya ver"
+                                                        >
+                                                            <Truck size={16} /> Kargola
+                                                        </button>
+                                                    )}
+                                                    
+                                                    {order.Status === 'Kargoda' && ( 
+                                                        <button 
+                                                            className="btn btn-sm btn-outline-success" 
+                                                            onClick={() => handleStatusUpdate(order.OrderID, 'Tamamlandı')}
+                                                            disabled={submitting}
+                                                            title="Siparişi teslim edildi olarak işaretle"
+                                                        >
+                                                            Teslim Edildi
+                                                        </button>
+                                                    )}
+                                                </td>
                                             </tr>
                                         )) : (
-                                            <tr><td colSpan="4" className="text-center py-5 text-muted">Henüz hiç sipariş yok.</td></tr>
+                                            <tr><td colSpan="7" className="text-center py-5 text-muted">Henüz hiç sipariş yok.</td></tr>
                                         )}
                                     </tbody>
                                 </table>
