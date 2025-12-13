@@ -1,47 +1,75 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ShoppingBag, Trash2, Plus, LayoutDashboard, RefreshCw, UploadCloud, Tag, Building, Truck } from 'lucide-react'; 
+import { Package, ShoppingBag, Trash2, Plus, LayoutDashboard, RefreshCw, UploadCloud, Tag, Building, Truck, Send, CheckCircle, XCircle, FileText, User } from 'lucide-react'; 
 import api from '../api';
 
 const Admin = () => {
-    // Sekme Yönetimi
-    const [activeTab, setActiveTab] = useState('orders'); // Başlangıç sekmesini siparişler yaptık
-
-    // Veri State'leri
+    const [activeTab, setActiveTab] = useState('orders'); 
     const [products, setProducts] = useState([]);
     const [orders, setOrders] = useState([]);
     const [brands, setBrands] = useState([]); 
+    const [returnRequests, setReturnRequests] = useState([]); 
     
-    // Yükleme ve Gönderme Durumları
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false); 
     
-    // --- MARKA EKLEME STATE'LERİ ---
+    // --- YENİ DETAY STATE'LERİ ---
+    const [showOrderDetailModal, setShowOrderDetailModal] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState(null);
+
+    const [showReturnDetailModal, setShowReturnDetailModal] = useState(false);
+    const [selectedReturn, setSelectedReturn] = useState(null);
+    // ----------------------------
+
+    // --- MARKA EKLEME STATE'LERİ (Aynı Kaldı) ---
     const [newBrandData, setNewBrandData] = useState({
-        BrandName: '',
-        Country: '',
-        Description: '',
+        BrandName: '', Country: '', Description: '',
     });
     const [brandMessage, setBrandMessage] = useState('');
     const [brandError, setBrandError] = useState(false);
 
-    // --- ÜRÜN EKLEME STATE'LERİ (Watches Modelinden) ---
+    // --- ÜRÜN EKLEME STATE'LERİ (Aynı Kaldı) ---
     const [newProduct, setNewProduct] = useState({
-        ModelName: '', 
-        Price: '',
-        Stock: '',
-        ImageUrl: '',
-        Gender: 'Erkek', 
-        BrandID: 1, 
-        CaseMaterial: 'Paslanmaz Çelik',
-        StrapMaterial: 'Deri',
-        MovementType: 'Otomatik',
-        WaterResistance: '5 ATM',
-        Description: '', 
+        ModelName: '', Price: '', Stock: '', ImageUrl: '',
+        Gender: 'Erkek', BrandID: 1, CaseMaterial: 'Paslanmaz Çelik',
+        StrapMaterial: 'Deri', MovementType: 'Otomatik',
+        WaterResistance: '5 ATM', Description: '', 
     });
     const [galleryUrls, setGalleryUrls] = useState([]);
 
+    // --- YARDIMCI FONKSİYON: Durum Etiketi ---
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'Teslim Edildi':
+                return <span className="badge bg-success">Teslim Edildi</span>;
+            case 'Tamamlandı':
+                return <span className="badge bg-success">İade&Değişim Tamamlandı</span>;
+            case 'Onaylandı':
+                return <span className="badge bg-success">Onaylandı</span>;
+            case 'Kargoda':
+                return <span className="badge bg-primary">Kargoda</span>;
+            case 'İptal Edildi':
+                return <span className="badge bg-danger">İptal Edildi</span>;
+            case 'Reddedildi':
+                return <span className="badge bg-danger">Reddedildi</span>;
+            case 'Beklemede':
+            case 'Hazırlanıyor':
+            default:
+                return <span className="badge bg-warning text-dark">{status}</span>;
+        }
+    };
 
-    // --- VERİ ÇEKME (Watches, Orders, Brands) ---
+    // --- DETAY GÖRÜNTÜLEME FONKSİYONLARI ---
+    const showOrderDetails = (order) => {
+        setSelectedOrder(order);
+        setShowOrderDetailModal(true);
+    };
+
+    const showReturnDetails = (request) => {
+        setSelectedReturn(request);
+        setShowReturnDetailModal(true);
+    };
+
+    // --- VERİ ÇEKME (Watches, Orders, Brands, Returns) ---
     useEffect(() => {
         fetchData();
     }, []);
@@ -49,183 +77,161 @@ const Admin = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [prodRes, orderRes, brandsRes] = await Promise.all([
+            const [prodRes, orderRes, brandsRes, returnsRes] = await Promise.all([
                 api.get('/api/v1/watches/'),
-                // Admin'e özel TÜM siparişleri çeken endpoint
                 api.get('/api/v1/orders/admin/all'), 
-                api.get('/api/v1/brands/') 
+                api.get('/api/v1/brands/'),
+                api.get('/api/v1/returns/admin/all') 
             ]);
 
             setProducts(prodRes.data);
-            // Güncel veriyi al ve ID'ye göre tersten sırala (en yeni üstte)
+            // Sipariş ID'leri büyük harfle (OrderID) geldiği için sıralama bu şekilde
             setOrders(orderRes.data.sort((a, b) => b.OrderID - a.OrderID)); 
             setBrands(brandsRes.data); 
+            setReturnRequests(returnsRes.data.sort((a, b) => b.ReturnID - a.ReturnID)); 
 
-            // Formdaki varsayılan BrandID'yi ilk markanın ID'si yap
             if (brandsRes.data.length > 0) {
-                setNewProduct(prev => ({ 
-                    ...prev, 
-                    BrandID: brandsRes.data[0].BrandID 
-                }));
+                setNewProduct(prev => ({ ...prev, BrandID: brandsRes.data[0].BrandID }));
             }
-
         } catch (err) {
             console.error("Admin verileri çekilemedi:", err);
             if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-                 alert("Yetkiniz yok veya oturumunuz sona erdi. Lütfen tekrar giriş yapın.");
+                alert("Yetkiniz yok veya oturumunuz sona erdi. Lütfen tekrar giriş yapın.");
             }
         } finally {
             setLoading(false);
         }
     };
 
-    // --- SİPARİŞ DURUMU GÜNCELLEME (Hızlı State Güncellemesi) ---
+    // --- SİPARİŞ DURUMU GÜNCELLEME ---
     const handleStatusUpdate = async (orderId, newStatus) => {
-        // Kullanıcıdan onay al
         if (!window.confirm(`Sipariş #${orderId} durumunu "${newStatus}" olarak güncellemek istediğinize emin misiniz?`)) return;
 
         setSubmitting(true);
 
         try {
-            const payload = {
-                Status: newStatus 
-            };
-
-            // API'yi çağır ve güncel sipariş objesini bekle (Backend artık Eager Loading ile dönüyor)
+            const payload = { "Status": newStatus }; 
             const response = await api.patch(`/api/v1/orders/admin/${orderId}/status`, payload);
             const updatedOrder = response.data; 
 
-            // Local state'i doğrudan güncelleyerek anlık değişiklik sağla (fetchData'dan daha hızlı)
             setOrders(prevOrders => prevOrders.map(order => 
-                order.OrderID === orderId ? updatedOrder : order // Sadece güncellenen siparişi değiştir
+                order.OrderID === orderId ? updatedOrder : order 
             ).sort((a, b) => b.OrderID - a.OrderID)); 
+            
+            // Modal açıksa, güncel veriyi orada da gösterelim
+            if (selectedOrder && selectedOrder.OrderID === orderId) {
+                setSelectedOrder(updatedOrder);
+            }
 
             console.log(`Sipariş #${orderId} durumu başarıyla "${newStatus}" olarak güncellendi.`);
             
         } catch (err) {
             console.error("Durum güncelleme hatası:", err.response?.data || err);
-            // Hata mesajını kullanıcıya göster
             alert(`Durum güncelleme başarısız: ${err.response?.data?.detail || err.message || 'Bilinmeyen bir hata oluştu.'}`);
         } finally {
             setSubmitting(false);
         }
     };
     
-    // --- ÜRÜN FORM İŞLEYİCİSİ (Aynı kaldı) ---
+    // --- İADE TALEBİ DURUM GÜNCELLEME ---
+    const handleReturnStatusUpdate = async (returnId, newStatus) => {
+        if (!window.confirm(`Talep #${returnId} durumunu "${newStatus}" olarak güncellemek istediğinize emin misiniz?`)) return;
+
+        setSubmitting(true);
+
+        try {
+            const payload = { "Status": newStatus };
+            const response = await api.patch(`/api/v1/returns/admin/${returnId}/status`, payload);
+            const updatedRequest = response.data;
+
+            setReturnRequests(prevRequests => prevRequests.map(req => 
+                req.ReturnID === returnId ? updatedRequest : req
+            ).sort((a, b) => b.ReturnID - a.ReturnID));
+
+            // Modal açıksa, güncel veriyi orada da gösterelim
+            if (selectedReturn && selectedReturn.ReturnID === returnId) {
+                setSelectedReturn(updatedRequest);
+            }
+
+            alert(`Talep #${returnId} başarıyla "${newStatus}" olarak güncellendi.`);
+
+        } catch (err) {
+            console.error("İade durumu güncelleme hatası:", err.response?.data || err);
+            alert(`Güncelleme başarısız: ${err.response?.data?.detail || err.message || 'Bilinmeyen bir hata oluştu.'}`);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+
+    // --- Diğer form ve delete fonksiyonları (Aynı Kaldı) ---
     const handleProductChange = (e) => {
         const { name, value } = e.target;
-        setNewProduct(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        setNewProduct(prev => ({ ...prev, [name]: value }));
     };
 
-    // --- MARKA FORM İŞLEYİCİSİ (Aynı kaldı) ---
     const handleBrandFormChange = (e) => {
         const { name, value } = e.target;
-        setNewBrandData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        setNewBrandData(prev => ({ ...prev, [name]: value }));
     };
 
-    // --- MARKA EKLEME SUBMIT (Aynı kaldı) ---
     const handleAddBrandSubmit = async (e) => {
         e.preventDefault();
-        setBrandMessage('');
-        setBrandError(false);
-
-        if (!newBrandData.BrandName || !newBrandData.Country || !newBrandData.Description) {
-            setBrandMessage('Lütfen tüm alanları doldurun.');
-            setBrandError(true);
-            return;
-        }
-        
+        setBrandMessage(''); setBrandError(false);
+        if (!newBrandData.BrandName || !newBrandData.Country || !newBrandData.Description) { setBrandMessage('Lütfen tüm alanları doldurun.'); setBrandError(true); return; }
         setSubmitting(true);
         try {
-            const response = await api.post('/api/v1/brands/', newBrandData); 
-            
-            setBrandMessage(`"${response.data.BrandName}" başarıyla eklendi!`);
+            await api.post('/api/v1/brands/', newBrandData); 
+            setBrandMessage(`"${newBrandData.BrandName}" başarıyla eklendi!`);
             setBrandError(false);
             setNewBrandData({ BrandName: '', Country: '', Description: '' });
             fetchData(); 
-
         } catch (err) {
             console.error("Marka eklenirken hata oluştu:", err);
             const errMsg = err.response?.data?.detail || 'Marka eklenirken bir hata oluştu.';
             setBrandMessage(`HATA: ${errMsg}`);
             setBrandError(true);
-        } finally {
-            setSubmitting(false);
-        }
+        } finally { setSubmitting(false); }
     };
     
-    // --- KAPAK RESMİ YÜKLEME (Aynı kaldı) ---
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         const formData = new FormData();
         formData.append('file', file);
-
         try {
-            const response = await api.post('/api/v1/upload/', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
+            const response = await api.post('/api/v1/upload/', formData, { headers: { 'Content-Type': 'multipart/form-data' }, });
             setNewProduct(prev => ({ ...prev, ImageUrl: response.data.url }));
-        } catch (err) {
-            console.error("Kapak resmi hatası:", err);
-            alert("Kapak resmi yüklenirken hata oluştu.");
-        }
+        } catch (err) { console.error("Kapak resmi hatası:", err); alert("Kapak resmi yüklenirken hata oluştu."); }
     };
 
-    // --- GALERİ RESMİ YÜKLEME (Aynı kaldı) ---
     const handleGalleryUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
-
         const uploadPromises = files.map(file => {
             const formData = new FormData();
             formData.append('file', file);
-            return api.post('/api/v1/upload/', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            return api.post('/api/v1/upload/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         });
-
         try {
             const responses = await Promise.all(uploadPromises);
             const uploadedUrls = responses.map(res => res.data.url);
             setGalleryUrls(prev => [...prev, ...uploadedUrls]);
-
-        } catch (err) {
-            console.error("Galeri yükleme hatası:", err);
-            alert("Bazı resimler yüklenemedi.");
-        }
+        } catch (err) { console.error("Galeri yükleme hatası:", err); alert("Bazı resimler yüklenemedi."); }
     };
 
-    // --- ÜRÜN KAYDETME SUBMIT (Aynı kaldı) ---
     const handleAddSubmit = async (e) => {
         e.preventDefault();
-        
-        if (!newProduct.ModelName || !newProduct.Price || !newProduct.Stock || !newProduct.BrandID || !newProduct.CaseMaterial || !newProduct.StrapMaterial || !newProduct.MovementType || !newProduct.WaterResistance) {
-             alert("Lütfen Model Adı, Fiyat, Stok ve tüm Teknik Detayları girin!");
-             return;
-        }
-
+        if (!newProduct.ModelName || !newProduct.Price || !newProduct.Stock || !newProduct.BrandID || !newProduct.CaseMaterial || !newProduct.StrapMaterial || !newProduct.MovementType || !newProduct.WaterResistance) { alert("Lütfen Model Adı, Fiyat, Stok ve tüm Teknik Detayları girin!"); return; }
         setSubmitting(true);
 
         try {
             const payload = {
-                ModelName: newProduct.ModelName,
-                Price: parseFloat(newProduct.Price),
-                Stock: parseInt(newProduct.Stock),
-                ImageUrl: newProduct.ImageUrl || "https://via.placeholder.com/300",
-                BrandID: parseInt(newProduct.BrandID), 
-                Gender: newProduct.Gender, 
-                CaseMaterial: newProduct.CaseMaterial,
-                StrapMaterial: newProduct.StrapMaterial,
-                MovementType: newProduct.MovementType,
-                WaterResistance: newProduct.WaterResistance,
+                ModelName: newProduct.ModelName, Price: parseFloat(newProduct.Price),
+                Stock: parseInt(newProduct.Stock), ImageUrl: newProduct.ImageUrl || "https://via.placeholder.com/300",
+                BrandID: parseInt(newProduct.BrandID), Gender: newProduct.Gender, 
+                CaseMaterial: newProduct.CaseMaterial, StrapMaterial: newProduct.StrapMaterial,
+                MovementType: newProduct.MovementType, WaterResistance: newProduct.WaterResistance,
                 Description: newProduct.Description,
             };
 
@@ -233,24 +239,16 @@ const Admin = () => {
             const createdWatchID = response.data.WatchID || response.data.id;
 
             if (galleryUrls.length > 0) {
-                await Promise.all(galleryUrls.map(url =>
-                    api.post('/api/v1/watches/watch_images/', { 
-                        WatchID: createdWatchID,
-                        ImageUrl: url
-                    })
-                ));
+                await Promise.all(galleryUrls.map(url => api.post('/api/v1/watches/watch_images/', { WatchID: createdWatchID, ImageUrl: url })));
             }
 
             alert("Ürün başarıyla eklendi! 🎉");
-            
             setNewProduct(prev => ({ 
-                ...prev, 
-                ModelName: '', Price: '', Stock: '', ImageUrl: '', Description: '', 
+                ...prev, ModelName: '', Price: '', Stock: '', ImageUrl: '', Description: '', 
                 BrandID: brands.length > 0 ? brands[0].BrandID : 1
             }));
             setGalleryUrls([]);
             fetchData(); 
-
         } catch (err) {
             console.error("Ekleme hatası:", err.response?.data || err);
             alert(`Ürün eklenirken hata oluştu: ${err.response?.data?.detail || err.message}`);
@@ -259,10 +257,8 @@ const Admin = () => {
         }
     };
 
-    // --- ÜRÜN SİLME (Aynı kaldı) ---
     const handleRemoveProduct = async (id) => {
         if (!window.confirm("Bu ürünü silmek istediğine emin misin?")) return;
-
         try {
             await api.delete(`/api/v1/watches/${id}`);
             setProducts(products.filter(p => p.WatchID !== id));
@@ -318,6 +314,13 @@ const Admin = () => {
                             onClick={() => setActiveTab('orders')}
                         >
                             <ShoppingBag size={18} className="me-2" /> Siparişler ({orders.length})
+                        </button>
+                        
+                        <button
+                            className={`list-group-item list-group-item-action border-0 d-flex align-items-center py-3 ${activeTab === 'returns' ? 'active bg-dark text-white fw-bold' : ''}`}
+                            onClick={() => setActiveTab('returns')}
+                        >
+                            <Tag size={18} className="me-2" /> İade/Değişim ({returnRequests.length})
                         </button>
                     </div>
                 </div>
@@ -561,7 +564,7 @@ const Admin = () => {
                         </>
                     )}
 
-                    {/* --- 3. SİPARİŞLER --- (GÜNCELLENDİ) */}
+                    {/* --- 3. SİPARİŞLER --- */}
                     {activeTab === 'orders' && (
                         <div className="card border-0 shadow-sm">
                             <div className="card-header bg-white py-3 border-bottom-0">
@@ -575,9 +578,8 @@ const Admin = () => {
                                             <th>Kullanıcı ID</th> 
                                             <th>Tarih</th>
                                             <th>Tutar</th>
-                                            <th>Adres (Kısa)</th> 
                                             <th>Durum</th>
-                                            <th className="text-end pe-4">Eylem</th> 
+                                            <th className="text-end pe-4">İşlem</th> 
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -587,22 +589,23 @@ const Admin = () => {
                                                 <td>{order.UserID}</td> 
                                                 <td>{new Date(order.OrderDate).toLocaleDateString('tr-TR')}</td>
                                                 <td className="fw-bold text-success">₺{parseFloat(order.TotalAmount).toLocaleString()}</td>
-                                                <td>{order.ShippingAddress ? order.ShippingAddress.substring(0, 30) + '...' : 'Adres Belirtilmemiş'}</td> 
                                                 <td>
-                                                    {/* Durum Renklendirmesi */}
-                                                    <span className={`badge ${
-                                                        order.Status === 'Tamamlandı' ? 'bg-success' : 
-                                                        order.Status === 'Kargoda' ? 'bg-primary' : 
-                                                        'bg-warning text-dark' // Hazırlanıyor
-                                                    }`}>
-                                                        {order.Status}
-                                                    </span>
+                                                    {getStatusBadge(order.Status)}
                                                 </td>
                                                 <td className="text-end pe-4">
+                                                    {/* YENİ DETAY BUTONU */}
+                                                    <button 
+                                                        className="btn btn-sm btn-outline-secondary me-2" 
+                                                        onClick={() => showOrderDetails(order)}
+                                                        title="Sipariş Detaylarını Gör"
+                                                    >
+                                                        <FileText size={16} /> Detay
+                                                    </button>
+                                                    
                                                     {/* EYLEM BUTONLARI */}
                                                     {order.Status === 'Hazırlanıyor' && (
                                                         <button 
-                                                            className="btn btn-sm btn-outline-primary me-2" 
+                                                            className="btn btn-sm btn-outline-primary" 
                                                             onClick={() => handleStatusUpdate(order.OrderID, 'Kargoda')}
                                                             disabled={submitting}
                                                             title="Siparişi kargoya ver"
@@ -610,31 +613,305 @@ const Admin = () => {
                                                             <Truck size={16} /> Kargola
                                                         </button>
                                                     )}
-                                                    
-                                                    {order.Status === 'Kargoda' && ( 
-                                                        <button 
-                                                            className="btn btn-sm btn-outline-success" 
-                                                            onClick={() => handleStatusUpdate(order.OrderID, 'Tamamlandı')}
-                                                            disabled={submitting}
-                                                            title="Siparişi teslim edildi olarak işaretle"
-                                                        >
-                                                            Teslim Edildi
-                                                        </button>
-                                                    )}
+                                                     {order.Status === 'Kargoda' && ( 
+                                                         <button 
+                                                             className="btn btn-sm btn-outline-success" 
+                                                             onClick={() => handleStatusUpdate(order.OrderID, 'Teslim Edildi')}
+                                                             disabled={submitting}
+                                                             title="Siparişi teslim edildi olarak işaretle"
+                                                         >
+                                                             Teslim Edildi
+                                                         </button>
+                                                     )}
                                                 </td>
                                             </tr>
                                         )) : (
-                                            <tr><td colSpan="7" className="text-center py-5 text-muted">Henüz hiç sipariş yok.</td></tr>
+                                            <tr><td colSpan="6" className="text-center py-5 text-muted">Henüz hiç sipariş yok.</td></tr>
                                         )}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     )}
+                    
+                    {/* --- 4. İADE/DEĞİŞİM TALEPLERİ --- */}
+                    {activeTab === 'returns' && (
+                       <div className="card shadow-sm p-4">
+                            <h4 className="fw-bold mb-4">İade & Değişim Talepleri ({returnRequests.length})</h4>
+                            
+                            {returnRequests.length > 0 ? (
+                                <div className="table-responsive">
+                                    <table className="table table-hover align-middle">
+                                        <thead className="table-light">
+                                            <tr>
+                                                <th>Talep No</th>
+                                                <th>Sipariş No</th>
+                                                <th>Ürün Adı</th> {/* YENİ: Ürün Adı Kolonu */}
+                                                <th>Tip</th>
+                                                <th>Neden</th>
+                                                <th>Durum</th>
+                                                <th className="text-end">İşlemler</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {returnRequests.map(req => (
+                                                <tr key={req.ReturnID}>
+                                                    <td className="fw-bold">#{req.ReturnID}</td>
+                                                    <td>#{req.OrderID}</td>
+                                                    {/* ÜRÜN ADI GÖSTERİMİ */}
+                                                    <td>
+                                                        {req.order?.order_details?.length > 0 ? (
+                                                            // İlk ürünün adını alıyoruz
+                                                            `${req.order.order_details[0].watch?.brand?.BrandName || ''} ${req.order.order_details[0].watch?.ModelName || 'Model Adı Yok'}`
+                                                        ) : (
+                                                            'Ürün Detayı Yok'
+                                                        )}
+                                                    </td>
+                                                    <td>{req.RequestType}</td>
+                                                    <td title={req.Description || req.Reason}>{req.Reason.substring(0, 20)}...</td>
+                                                    <td>{getStatusBadge(req.Status)}</td>
+                                                    <td className="text-end">
+                                                        {/* YENİ DETAY BUTONU */}
+                                                        <button 
+                                                            className="btn btn-sm btn-outline-secondary me-2" 
+                                                            onClick={() => showReturnDetails(req)}
+                                                            title="İade Detaylarını Gör"
+                                                        >
+                                                            <FileText size={16} /> Detay
+                                                        </button>
+                                                        
+                                                        {/* İŞLEM BUTONLARI */}
+                                                        {req.Status === 'Beklemede' && (
+                                                            <>
+                                                                <button 
+                                                                    className="btn btn-sm btn-success me-2" 
+                                                                    onClick={() => handleReturnStatusUpdate(req.ReturnID, 'Onaylandı')}
+                                                                    disabled={submitting}
+                                                                    title="Talebi Onayla"
+                                                                >
+                                                                    <CheckCircle size={16} />
+                                                                </button>
+                                                                <button 
+                                                                    className="btn btn-sm btn-danger" 
+                                                                    onClick={() => handleReturnStatusUpdate(req.ReturnID, 'Reddedildi')}
+                                                                    disabled={submitting}
+                                                                    title="Talebi Reddet"
+                                                                >
+                                                                    <XCircle size={16} />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                        {req.Status === 'Onaylandı' && (
+                                                            <button 
+                                                                className="btn btn-sm btn-primary" 
+                                                                onClick={() => handleReturnStatusUpdate(req.ReturnID, 'Tamamlandı')}
+                                                                disabled={submitting}
+                                                                title="İşlemi Tamamlandı"
+                                                            >
+                                                                Tamamla
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="text-muted">Şu anda aktif iade veya değişim talebi bulunmamaktadır.</p>
+                            )}
+                       </div>
+                    )}
+                </div>
+            </div>
+
+            {/* --- MODAL BİLEŞENLERİNİ ÇAĞIRMA --- */}
+            {showOrderDetailModal && selectedOrder && (
+                <OrderDetailsModal 
+                    order={selectedOrder} 
+                    onClose={() => setShowOrderDetailModal(false)} 
+                    getStatusBadge={getStatusBadge}
+                    handleStatusUpdate={handleStatusUpdate}
+                    submitting={submitting}
+                />
+            )}
+
+            {showReturnDetailModal && selectedReturn && (
+                <ReturnDetailsModal 
+                    request={selectedReturn} 
+                    onClose={() => setShowReturnDetailModal(false)} 
+                    getStatusBadge={getStatusBadge}
+                    handleReturnStatusUpdate={handleReturnStatusUpdate}
+                    submitting={submitting}
+                />
+            )}
+        </div>
+    );
+};
+
+export default Admin;
+
+
+// --- MODAL BİLEŞENLERİ (Aynı Dosyada VEYA Ayrı Bir Dosyada Tanımlanabilir) ---
+
+// 1. SİPARİŞ DETAY MODALI
+const OrderDetailsModal = ({ order, onClose, getStatusBadge, handleStatusUpdate, submitting }) => {
+    return (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div className="modal-content">
+                    <div className="modal-header bg-dark text-white">
+                        <h5 className="modal-title">Sipariş Detayları #{order.OrderID}</h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
+                    </div>
+                    <div className="modal-body">
+                        <div className="row">
+                            <div className="col-md-6">
+                                <h6><ShoppingBag size={18} className="me-1 mb-1" /> **Genel Bilgiler**</h6>
+                                <p><strong>Durum:</strong> {getStatusBadge(order.Status)}</p>
+                                <p><strong>Tutar:</strong> ₺{parseFloat(order.TotalAmount).toLocaleString()}</p>
+                                <p><strong>Tarih:</strong> {new Date(order.OrderDate).toLocaleDateString('tr-TR')}</p>
+                            </div>
+                            <div className="col-md-6">
+                                <h6><User size={18} className="me-1 mb-1" /> **Kullanıcı & Adres**</h6>
+                                <p><strong>Kullanıcı ID:</strong> {order.UserID}</p>
+                                <p><strong>Teslimat Adresi:</strong> {order.ShippingAddress}</p>
+                            </div>
+                        </div>
+                        
+                        <hr />
+                        <h6><Package size={18} className="me-1 mb-1" /> **Ürünler ({order.order_details.length})**</h6>
+                        <ul className="list-group list-group-flush">
+                            {order.order_details.map(detail => (
+                                <li key={detail.OrderDetailID || detail.id} className="list-group-item d-flex justify-content-between align-items-center">
+                                    <div className="d-flex align-items-center">
+                                        <img src={detail.watch?.ImageUrl || "https://via.placeholder.com/30"} alt="Ürün" style={{ width: '30px', height: '30px', objectFit: 'contain' }} className="me-2 rounded" />
+                                        <span>
+                                            **{detail.watch?.brand?.BrandName || 'Bilinmiyor'} {detail.watch?.ModelName}**
+                                        </span>
+                                    </div>
+                                    <span className="badge bg-secondary">
+                                        {detail.Quantity} x ₺{parseFloat(detail.UnitPrice).toLocaleString()}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+
+                    </div>
+                    <div className="modal-footer">
+                         {/* Durum güncelleme butonları (Modal'dan da erişilebilir) */}
+                         {order.Status === 'Hazırlanıyor' && (
+                            <button 
+                                className="btn btn-primary" 
+                                onClick={() => handleStatusUpdate(order.OrderID, 'Kargoda')}
+                                disabled={submitting}
+                            >
+                                <Truck size={16} /> Kargola
+                            </button>
+                        )}
+                        {order.Status === 'Kargoda' && ( 
+                            <button 
+                                className="btn btn-success" 
+                                onClick={() => handleStatusUpdate(order.OrderID, 'Teslim Edildi')}
+                                disabled={submitting}
+                            >
+                                Teslim Edildi
+                            </button>
+                        )}
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>Kapat</button>
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
-export default Admin;
+// 2. İADE DETAY MODALI
+const ReturnDetailsModal = ({ request, onClose, getStatusBadge, handleReturnStatusUpdate, submitting }) => {
+    // İade objesi artık sipariş detaylarını içeriyor.
+    const firstOrderDetail = request.order?.order_details?.[0];
+
+    return (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div className="modal-content">
+                    <div className="modal-header bg-dark text-white">
+                        <h5 className="modal-title">İade/Değişim Talebi Detayları #{request.ReturnID}</h5>
+                        <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
+                    </div>
+                    <div className="modal-body">
+                        <div className="row">
+                            <div className="col-md-6">
+                                <h6><FileText size={18} className="me-1 mb-1" /> **Talep Bilgileri**</h6>
+                                <p><strong>Durum:</strong> {getStatusBadge(request.Status)}</p>
+                                <p><strong>Tip:</strong> {request.RequestType}</p>
+                                <p><strong>Talep Tarihi:</strong> {new Date(request.CreatedAt).toLocaleDateString('tr-TR')}</p>
+                            </div>
+                            <div className="col-md-6">
+                                <h6><ShoppingBag size={18} className="me-1 mb-1" /> **İlgili Sipariş**</h6>
+                                <p><strong>Sipariş No:</strong> {request.OrderID}</p>
+                                <p><strong>Kullanıcı ID:</strong> {request.UserID}</p>
+                            </div>
+                        </div>
+                        
+                        <hr />
+                        <h6><Package size={18} className="me-1 mb-1" /> **İlgili Ürün**</h6>
+                        {/* Not: İade talebi hangi ürüne aitse onun detayını gösteriyoruz. 
+                           Eğer talep birden fazla ürünü içeriyorsa, bu kısım tüm ürünleri listelemek için güncellenmeli. 
+                           Şimdilik ilk ürünü gösteriyoruz. */}
+                        {firstOrderDetail ? (
+                             <div className="d-flex align-items-center mb-3 p-2 bg-light rounded">
+                                <img src={firstOrderDetail.watch?.ImageUrl || "https://via.placeholder.com/40"} alt="Ürün" style={{ width: '40px', height: '40px', objectFit: 'contain' }} className="me-3 rounded" />
+                                <div>
+                                    <p className="m-0 fw-bold">{firstOrderDetail.watch?.brand?.BrandName || 'Bilinmiyor'} {firstOrderDetail.watch?.ModelName}</p>
+                                    <p className="m-0 small text-muted">Adet: {firstOrderDetail.Quantity} | Fiyat: ₺{parseFloat(firstOrderDetail.UnitPrice).toLocaleString()}</p>
+                                </div>
+                             </div>
+                        ) : (
+                            <p className="text-danger">İlgili sipariş detayı bulunamadı.</p>
+                        )}
+
+                        <hr />
+                        <h6><Send size={18} className="me-1 mb-1" /> **Müşteri Notu**</h6>
+                        <p><strong>Neden:</strong> <span className='fw-bold'>{request.Reason}</span></p>
+                        <p className={`p-3 ${request.Description ? 'bg-light rounded' : 'text-muted'}`}>
+                            {request.Description || "Müşteri detaylı açıklama girmemiş."}
+                        </p>
+
+                    </div>
+                    <div className="modal-footer">
+                        {/* Durum güncelleme butonları (Modal'dan da erişilebilir) */}
+                        {request.Status === 'Beklemede' && (
+                            <>
+                                <button 
+                                    className="btn btn-success" 
+                                    onClick={() => handleReturnStatusUpdate(request.ReturnID, 'Onaylandı')}
+                                    disabled={submitting}
+                                >
+                                    <CheckCircle size={16} /> Onayla
+                                </button>
+                                <button 
+                                    className="btn btn-danger" 
+                                    onClick={() => handleReturnStatusUpdate(request.ReturnID, 'Reddedildi')}
+                                    disabled={submitting}
+                                >
+                                    <XCircle size={16} /> Reddet
+                                </button>
+                            </>
+                        )}
+                        {request.Status === 'Onaylandı' && (
+                            <button 
+                                className="btn btn-primary" 
+                                onClick={() => handleReturnStatusUpdate(request.ReturnID, 'Tamamlandı')}
+                                disabled={submitting}
+                            >
+                                Tamamla
+                            </button>
+                        )}
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>Kapat</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};

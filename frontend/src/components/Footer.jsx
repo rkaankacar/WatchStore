@@ -35,7 +35,7 @@ const Footer = () => {
             <h6 className="fw-bold mb-3 text-warning">Yardım</h6>
             <ul className="list-unstyled small text-muted">
               <li className="mb-2"><Link to="/profil" className="text-decoration-none text-white">Sipariş Takibi</Link></li>
-              <li className="mb-2"><Link to="/" className="text-decoration-none text-white">İade & Değişim</Link></li>
+              <li className="mb-2"><Link to="/return-details" className="text-decoration-none text-white">İade & Değişim</Link></li>
               <li className="mb-2"><Link to="/faq" className="text-decoration-none text-white">S.S.S.</Link></li>
             </ul>
           </div>

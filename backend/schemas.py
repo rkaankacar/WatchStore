@@ -320,4 +320,29 @@ class UserChangePassword(BaseModel):
     new_password: str 
     new_password_again: str 
 
-    
+
+
+class ReturnBase(BaseModel):
+    order_id: int = Field(..., alias="OrderID")
+    request_type: str = Field(..., alias="RequestType") 
+    reason: str = Field(..., alias="Reason") 
+    description: Optional[str] = Field(None, alias="Description")
+
+class ReturnCreate(ReturnBase):
+    pass 
+
+class ReturnUpdate(BaseModel):
+    status: Optional[str] = Field(None, alias="Status")
+
+class ReturnResponse(ReturnBase):
+    id: int = Field(..., alias="ReturnID")
+    user_id: int = Field(..., alias="UserID")
+    status: str = Field(..., alias="Status")
+    created_at: datetime = Field(..., alias="CreatedAt")
+    description: Optional[str] = Field(None, alias="Description")
+
+    # YENİ EKLENEN KISIM: Backend'deki Eager Loading ile gelen Order ilişkisini buraya ekliyoruz.
+    # OrderResponse, içinde 'order_details' ve 'watch' (ürün adı) bilgisini barındıran şema olmalıdır.
+    order: Optional[OrderResponse] = None 
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)

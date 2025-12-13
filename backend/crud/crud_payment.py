@@ -33,9 +33,6 @@ IYZICO_SECRET_KEY = os.getenv("IYZICO_SECRET_KEY")
 
 
 class CRUDPayment:
-
-
-
     # -----------------------------
 
     # 1) ÖDEME FORMUNU OLUŞTURAN METOT

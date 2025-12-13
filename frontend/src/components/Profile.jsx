@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ShoppingBag, User, MapPin, KeyRound, RefreshCw, Loader, ArrowLeft } from "lucide-react";
+import { ShoppingBag, User, MapPin, KeyRound, RefreshCw, Loader, ArrowLeft, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 
@@ -8,12 +8,12 @@ import api from "../api";
 // ==========================================================
 const getStatusBadge = (status) => {
     switch (status) {
-        case 'Tamamlandı':
-            return <span className="badge bg-success">Tamamlandı</span>;
+        case 'Teslim Edildi':
+            return <span className="badge bg-success">Teslim Edildi</span>;
         case 'Kargoda':
             return <span className="badge bg-primary">Kargoda</span>;
         case 'İptal Edildi':
-             return <span className="badge bg-danger">İptal Edildi</span>;
+            return <span className="badge bg-danger">İptal Edildi</span>;
         case 'Hazırlanıyor':
         default:
             return <span className="badge bg-warning text-dark">Hazırlanıyor</span>;
@@ -21,33 +21,112 @@ const getStatusBadge = (status) => {
 };
 
 // ==========================================================
+// YARDIMCI BİLEŞEN: İade/Değişim Talep Formu
+// ==========================================================
+const ReturnRequestForm = ({ order, onBack, onSubmit, isSubmitting }) => {
+
+    // Form State'leri
+    const [requestData, setRequestData] = useState({
+        RequestType: 'İade', // Varsayılan: İade
+        Reason: '',
+        Description: ''
+    });
+
+    const handleFormChange = (e) => {
+        setRequestData(prev => ({
+            ...prev,
+            [e.target.name]: e.target.value
+        }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!requestData.Reason) {
+            alert("Lütfen talep nedenini belirtiniz.");
+            return;
+        }
+        // Ana Profile bileşenindeki onSubmit fonksiyonunu çağır
+        onSubmit(order.OrderID, requestData);
+    };
+
+    return (
+        <div className="card p-4 shadow-sm border-0">
+            <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
+                <h4 className="fw-bold m-0">
+                    Talep Oluştur: Sipariş #{order.OrderID}
+                </h4>
+                <button className="btn btn-sm btn-outline-dark" onClick={onBack} disabled={isSubmitting}>
+                    <ArrowLeft size={16} className="me-1" /> Sipariş Detayına Dön
+                </button>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+                <div className="row g-3">
+                    <div className="col-md-6 mb-3">
+                        <label className="form-label fw-bold">Talep Tipi *</label>
+                        <select
+                            name="RequestType"
+                            value={requestData.RequestType}
+                            onChange={handleFormChange}
+                            className="form-select bg-light border-0"
+                            required
+                        >
+                            <option value="İade">İade (Geri Ödeme)</option>
+                            <option value="Değişim">Değişim (Başka Ürün/Boyut)</option>
+                        </select>
+                    </div>
+
+                    <div className="col-md-6 mb-3">
+                        <label className="form-label fw-bold">Neden *</label>
+                        <select
+                            name="Reason"
+                            value={requestData.Reason}
+                            onChange={handleFormChange}
+                            className="form-select bg-light border-0"
+                            required
+                        >
+                            <option value="">Seçiniz</option>
+                            <option value="Ürün Kusurlu/Hasarlı">Ürün Kusurlu/Hasarlı</option>
+                            <option value="Beden/Boyut Uymadı">Beden/Boyut Uymadı</option>
+                            <option value="Yanlış Ürün Gönderildi">Yanlış Ürün Gönderildi</option>
+                            <option value="Beklentimi Karşılamadı">Beklentimi Karşılamadı</option>
+                            <option value="Vazgeçtim">Fikrimi Değiştirdim / Vazgeçtim</option>
+                            <option value="Diğer">Diğer (Açıklama Gerekli)</option>
+                        </select>
+                    </div>
+
+                    <div className="col-12 mb-4">
+                        <label className="form-label fw-bold">Açıklama (Opsiyonel)</label>
+                        <textarea
+                            name="Description"
+                            value={requestData.Description}
+                            onChange={handleFormChange}
+                            className="form-control bg-light border-0"
+                            rows="4"
+                            placeholder="Talebinizle ilgili detaylı bilgi ve beklentinizi yazınız."
+                        ></textarea>
+                    </div>
+
+                    <div className="col-12 text-end">
+                        <button type="submit" className="btn btn-dark px-4" disabled={isSubmitting}>
+                            <Send size={18} className="me-2 mb-1" />
+                            {isSubmitting ? "Gönderiliyor..." : "Talebi Gönder"}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+
+// ==========================================================
 // YARDIMCI BİLEŞEN: Sipariş Detay Sayfası
 // ==========================================================
-const OrderDetail = ({ orderId, onBack, onCancel, isSubmitting, getStatusBadge }) => {
-    const [detail, setDetail] = useState(null);
-    const [loading, setLoading] = useState(true);
+const OrderDetail = ({ orderId, onBack, onCancel, onRequestReturn, isSubmitting, getStatusBadge, orderDetail }) => {
 
-    useEffect(() => {
-        const fetchDetail = async () => {
-            setLoading(true);
-            try {
-                // Endpoint: /api/v1/orders/{order_id} (Kullanıcının kendi siparişini çeker)
-                const res = await api.get(`/api/v1/orders/${orderId}`);
-                setDetail(res.data);
-            } catch (err) {
-                console.error("Sipariş detayı çekilemedi:", err);
-                alert("Sipariş detayı yüklenirken hata oluştu. Lütfen konsolu kontrol edin.");
-                onBack(); // Hata durumunda listeye geri dön
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchDetail();
-        
-        // orderId değiştiğinde veya onBack değiştiğinde yeniden çek
-    }, [orderId, onBack]); 
-
-    if (loading) {
+    // Yükleme sırasında geçici olarak null olabilir
+    if (!orderDetail) {
         return (
             <div className="text-center py-5">
                 <Loader size={32} className="spinner-border text-dark" />
@@ -55,8 +134,7 @@ const OrderDetail = ({ orderId, onBack, onCancel, isSubmitting, getStatusBadge }
             </div>
         );
     }
-    if (!detail) return null;
-
+    const detail = orderDetail;
 
     return (
         <div className="card p-4 shadow-sm border-0">
@@ -64,25 +142,37 @@ const OrderDetail = ({ orderId, onBack, onCancel, isSubmitting, getStatusBadge }
                 <h4 className="fw-bold m-0">
                     Sipariş Detayı: #{detail.OrderID}
                 </h4>
-                
-                {/* İPTAL BUTONU KOŞULLU GÖRÜNÜMÜ */}
+
                 <div className="d-flex align-items-center">
+                    {/* İptal Butonu (Hazırlanıyor iken) */}
                     {detail.Status === 'Hazırlanıyor' && (
-                        <button 
-                            className="btn btn-sm btn-danger me-3" 
+                        <button
+                            className="btn btn-sm btn-danger me-3"
                             onClick={() => onCancel(detail.OrderID)}
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? 'İptal Ediliyor...' : 'Siparişi İptal Et'}
                         </button>
                     )}
+
+                    {/* İade/Değişim Butonu (Tamamlandı/Teslim Edildi ise) */}
+                    {detail.Status === 'Teslim Edildi' && (
+                        <button
+                            className="btn btn-sm btn-outline-warning me-3"
+                            onClick={() => onRequestReturn(detail)} // Formu açacak fonksiyon
+                            disabled={isSubmitting}
+                        >
+                            İade/Değişim Talebi
+                        </button>
+                    )}
+
                     <button className="btn btn-sm btn-outline-dark" onClick={onBack} disabled={isSubmitting}>
                         <ArrowLeft size={16} className="me-1" /> Listeye Dön
                     </button>
                 </div>
-                
+
             </div>
-            
+
             <div className="row mb-4">
                 <div className="col-md-4">
                     <p className="small text-muted mb-1">Durum</p>
@@ -97,20 +187,20 @@ const OrderDetail = ({ orderId, onBack, onCancel, isSubmitting, getStatusBadge }
                     <p className="fw-bold text-success">₺{parseFloat(detail.TotalAmount).toLocaleString()}</p>
                 </div>
             </div>
-            
+
             <h5 className="fw-bold mb-3 border-bottom pb-1">Teslimat Adresi</h5>
             <p>{detail.ShippingAddress || "Adres bilgisi mevcut değil."}</p>
 
             <h5 className="fw-bold mt-4 mb-3 border-bottom pb-1">Ürünler ({detail.order_details.length})</h5>
-            
+
             <ul className="list-group list-group-flush">
                 {detail.order_details.map(item => (
                     <li key={item.OrderDetailID} className="list-group-item d-flex justify-content-between align-items-center">
                         <div className="d-flex align-items-center">
-                            <img 
-                                src={item.watch?.ImageUrl || "https://via.placeholder.com/40"} 
-                                alt="Ürün" 
-                                style={{ width: '40px', height: '40px', objectFit: 'contain' }} 
+                            <img
+                                src={item.watch?.ImageUrl || "https://via.placeholder.com/40"}
+                                alt="Ürün"
+                                style={{ width: '40px', height: '40px', objectFit: 'contain' }}
                                 className="me-3 rounded border"
                             />
                             <div>
@@ -125,7 +215,7 @@ const OrderDetail = ({ orderId, onBack, onCancel, isSubmitting, getStatusBadge }
                     </li>
                 ))}
             </ul>
-            
+
         </div>
     );
 };
@@ -138,28 +228,18 @@ const Profile = ({ user }) => {
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState("orders");
-    const [selectedOrderId, setSelectedOrderId] = useState(null); 
+    const [selectedOrderId, setSelectedOrderId] = useState(null);
+    const [orderToReturn, setOrderToReturn] = useState(null); // İade/Değişim formu için state
 
-    const [userData, setUserData] = useState({
-        Email: "",
-        Phone: "",
-        Address: "",
-        City: "",
-        Country: "",
-    });
-
-    const [passwordData, setPasswordData] = useState({
-        currentPassword: "",
-        newPassword: "",
-        confirmNewPassword: "",
-    });
-
+    const [userData, setUserData] = useState({ Email: "", Phone: "", Address: "", City: "", Country: "" });
+    const [passwordData, setPasswordData] = useState({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [ordersLoading, setOrdersLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [message, setMessage] = useState("");
     const [isError, setIsError] = useState(false);
+    const [currentOrderDetail, setCurrentOrderDetail] = useState(null); // Detay verisini tutar
 
     const USER_ID = user?.UserID || user?.id;
 
@@ -167,8 +247,77 @@ const Profile = ({ user }) => {
         USER_INFO: `/api/v1/users/${USER_ID}`,
         USER_UPDATE: `/api/v1/users/update/${USER_ID}`,
         PASSWORD_CHANGE: `/api/v1/users/change-password`,
-        USER_ORDERS: `/api/v1/orders/`, 
+        USER_ORDERS: `/api/v1/orders/`,
+        CREATE_RETURN: `/api/v1/returns/`
     };
+
+    // --- VERİ ÇEKME FONKSİYONLARI ---
+
+    const fetchUserData = async () => {
+        setLoading(true);
+        setIsError(false);
+        setMessage("");
+        try {
+            const userRes = await api.get(ENDPOINTS.USER_INFO);
+            setUserData({
+                Email: userRes.data.email || userRes.data.Email || "",
+                Phone: userRes.data.phone || userRes.data.Phone || "",
+                Address: userRes.data.address || userRes.data.Address || "",
+                City: userRes.data.city || userRes.data.City || "",
+                Country: userRes.data.country || userRes.data.Country || "",
+            });
+        } catch (err) {
+            console.error("Kullanıcı bilgisi çekilemedi:", err.response?.data || err);
+            setIsError(true);
+            setMessage("Kullanıcı bilgileri yüklenemedi.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchOrders = async () => {
+        setOrdersLoading(true);
+        try {
+            const orderRes = await api.get(ENDPOINTS.USER_ORDERS);
+            const sortedOrders = (orderRes.data || []).sort((a, b) => b.OrderID - a.OrderID);
+            setOrders(sortedOrders);
+        } catch (err) {
+            console.error("Siparişler çekilemedi:", err.response?.data || err);
+            if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+                setMessage("Siparişleri görüntüleme yetkiniz yok veya oturumunuz sona erdi.");
+                setIsError(true);
+            }
+            setOrders([]);
+        } finally {
+            setOrdersLoading(false);
+        }
+    };
+
+    const fetchOrderDetail = async (orderId) => {
+        try {
+            setOrdersLoading(true);
+            const res = await api.get(`/api/v1/orders/${orderId}`);
+            setCurrentOrderDetail(res.data);
+            return res.data;
+        } catch (err) {
+            console.error("Detay çekilemedi:", err);
+            setCurrentOrderDetail(null);
+            return null;
+        } finally {
+            setOrdersLoading(false);
+        }
+    }
+
+    const fetchData = async () => {
+        await fetchUserData();
+        if (activeTab === "orders") {
+            setSelectedOrderId(null);
+            setOrderToReturn(null);
+            await fetchOrders();
+        }
+    };
+
+    // --- LIFE CYCLE VE LOGIC ---
 
     useEffect(() => {
         if (!USER_ID) {
@@ -181,70 +330,55 @@ const Profile = ({ user }) => {
     }, [USER_ID]);
 
     useEffect(() => {
-        // Sipariş sekmesine geçtiğinde veya siparişler boşsa yükle
         if (activeTab === "orders" && USER_ID && (orders.length === 0 || !ordersLoading)) {
             fetchOrders();
         }
-        // Eğer tab değişirse detayı kapat
-        if (activeTab !== "orders" && selectedOrderId !== null) {
+        if (activeTab !== "orders" && (selectedOrderId !== null || orderToReturn !== null)) {
             setSelectedOrderId(null);
+            setOrderToReturn(null);
         }
     }, [activeTab, USER_ID]);
 
 
-    const fetchUserData = async () => {
-        setLoading(true);
-        setIsError(false);
+    // --- SİPARİŞ İŞLEMLERİ ---
+
+    // YENİ: Talep Formunu Gösterme
+    const handleRequestReturn = (order) => {
+        setOrderToReturn(order); // İade edilecek siparişi kaydet
+        setSelectedOrderId(order.OrderID); // Detay sayfasını açık tut (gerekirse)
+    };
+
+    // YENİ: Formdan Gelen Talebi Gönderme
+    const handleReturnSubmit = async (orderId, data) => {
+        setSubmitting(true);
         setMessage("");
 
         try {
-            const userRes = await api.get(ENDPOINTS.USER_INFO);
-            setUserData({
-                Email: userRes.data.email || userRes.data.Email || "",
-                Phone: userRes.data.phone || userRes.data.Phone || "",
-                Address: userRes.data.address || userRes.data.Address || "",
-                City: userRes.data.city || userRes.data.City || "",
-                Country: userRes.data.country || userRes.data.Country || "",
-            });
+            const payload = {
+                OrderID: orderId,
+                RequestType: data.RequestType,
+                Reason: data.Reason,
+                Description: data.Description,
+            };
+
+            const response = await api.post(ENDPOINTS.CREATE_RETURN, payload);
+
+            setMessage(`Talep (${response.data.RequestType}) başarıyla oluşturuldu! Talep No: #${response.data.ReturnID}`);
+            setIsError(false);
+
+            // Başarılı olunca listeye geri dön
+            setOrderToReturn(null);
+            handleBackToOrders();
 
         } catch (err) {
-            console.error("Kullanıcı bilgisi çekilemedi:", err.response?.data || err);
+            console.error("Talep gönderme hatası:", err.response?.data || err);
             setIsError(true);
-            setMessage("Kullanıcı bilgileri yüklenemedi.");
+            setMessage(err.response?.data?.detail || "Talep gönderilirken bir hata oluştu.");
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
-    const fetchOrders = async () => {
-        setOrdersLoading(true);
-
-        try {
-            const orderRes = await api.get(ENDPOINTS.USER_ORDERS);
-            const sortedOrders = (orderRes.data || []).sort((a, b) => b.OrderID - a.OrderID);
-            setOrders(sortedOrders);
-
-        } catch (err) {
-            console.error("Siparişler çekilemedi:", err.response?.data || err);
-            if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-                 setMessage("Siparişleri görüntüleme yetkiniz yok veya oturumunuz sona erdi.");
-                 setIsError(true);
-            }
-            setOrders([]);
-        } finally {
-            setOrdersLoading(false);
-        }
-    };
-
-    const fetchData = async () => {
-        await fetchUserData();
-        if (activeTab === "orders") {
-             setSelectedOrderId(null); // Listeyi yenilerken detayı kapat
-             await fetchOrders();
-        }
-    };
-
-    // Yeni: Siparişi İptal Etme İşlevi
     const handleCancelOrder = async (orderId) => {
         if (!window.confirm(`Sipariş #${orderId} iptal edilsin mi? Bu işlem geri alınamaz.`)) return;
 
@@ -252,22 +386,17 @@ const Profile = ({ user }) => {
         setMessage("");
 
         try {
-            const payload = {
-                "Status": "İptal Edildi" // Alias: Status
-            };
-
-            // PATCH /api/v1/orders/{order_id}/status endpoint'i kullanılır
+            const payload = { "Status": "İptal Edildi" };
             const response = await api.patch(`/api/v1/orders/${orderId}/status`, payload);
             const cancelledOrder = response.data;
-            
-            // State'i anlık güncelle: Yeni iptal edilmiş sipariş objesi ile değiştir
-            setOrders(prevOrders => prevOrders.map(order => 
+
+            setOrders(prevOrders => prevOrders.map(order =>
                 order.OrderID === orderId ? cancelledOrder : order
             ).sort((a, b) => b.OrderID - a.OrderID));
-            
-            // Detay görünümünü güncel siparişle yeniden yükle
-            setSelectedOrderId(cancelledOrder.OrderID); 
-            
+
+            setSelectedOrderId(cancelledOrder.OrderID);
+            setCurrentOrderDetail(cancelledOrder); // Detay bileşenini anında güncelle
+
             setMessage(`Sipariş #${orderId} başarıyla iptal edildi.`);
             setIsError(false);
 
@@ -280,108 +409,62 @@ const Profile = ({ user }) => {
         }
     };
 
-
     const handleOrderClick = (id) => {
-         setSelectedOrderId(id);
+        setSelectedOrderId(id);
+        fetchOrderDetail(id);
+        setOrderToReturn(null);
     };
-    
+
     const handleBackToOrders = () => {
         setSelectedOrderId(null);
-        fetchOrders(); // Listeye dönerken güncel listeyi tekrar çek
-    };
-    
-
-    const handleInfoChange = (e) => {
-        setUserData((prev) => ({
-            ...prev,
-            [e.target.name]: e.target.value,
-        }));
+        setOrderToReturn(null);
+        fetchOrders();
     };
 
-    const handlePasswordChange = (e) => {
-        setPasswordData((prev) => ({
-            ...prev,
-            [e.target.name]: e.target.value,
-        }));
-    };
-    
-    // ... (handleInfoSubmit ve handlePasswordSubmit aynı kalmıştır)
+
+    // --- BİLGİ/ŞİFRE GÜNCELLEME ---
+
+    const handleInfoChange = (e) => { setUserData((prev) => ({ ...prev, [e.target.name]: e.target.value })); };
+    const handlePasswordChange = (e) => { setPasswordData((prev) => ({ ...prev, [e.target.name]: e.target.value })); };
 
     const handleInfoSubmit = async (e) => {
         e.preventDefault();
-
         setSubmitting(true);
         setMessage("");
-
-        try {
-            await api.put(ENDPOINTS.USER_UPDATE, userData);
-            setMessage("Bilgiler başarıyla güncellendi!");
-            setIsError(false);
-
-        } catch (err) {
-            console.error("Güncelleme hatası:", err.response?.data || err);
-            setIsError(true);
-            setMessage(err.response?.data?.detail || "Bilgiler güncellenirken hata oluştu.");
-        } finally {
-            setSubmitting(false);
-        }
+        try { await api.put(ENDPOINTS.USER_UPDATE, userData); setMessage("Bilgiler başarıyla güncellendi!"); setIsError(false); }
+        catch (err) { console.error("Güncelleme hatası:", err.response?.data || err); setIsError(true); setMessage(err.response?.data?.detail || "Bilgiler güncellenirken hata oluştu."); }
+        finally { setSubmitting(false); }
     };
 
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
-
-        if (passwordData.newPassword !== passwordData.confirmNewPassword) {
-            setIsError(true);
-            setMessage("Yeni şifreler uyuşmuyor.");
-            return;
-        }
-
-        if (passwordData.newPassword.length < 6) {
-            setIsError(true);
-            setMessage("Yeni şifre en az 6 karakter olmalı.");
-            return;
-        }
-
+        if (passwordData.newPassword !== passwordData.confirmNewPassword) { setIsError(true); setMessage("Yeni şifreler uyuşmuyor."); return; }
+        if (passwordData.newPassword.length < 6) { setIsError(true); setMessage("Yeni şifre en az 6 karakter olmalı."); return; }
         setSubmitting(true);
         setMessage("");
-
         try {
-            await api.put(ENDPOINTS.PASSWORD_CHANGE, {
-                current_password: passwordData.currentPassword,
-                new_password: passwordData.newPassword,
-                new_password_again: passwordData.confirmNewPassword,
-            });
-
-            setMessage("Şifre başarıyla değiştirildi!");
-            setIsError(false);
-            setPasswordData({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
-
+            await api.put(ENDPOINTS.PASSWORD_CHANGE, { current_password: passwordData.currentPassword, new_password: passwordData.newPassword, new_password_again: passwordData.confirmNewPassword });
+            setMessage("Şifre başarıyla değiştirildi!"); setIsError(false); setPasswordData({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
         } catch (err) {
-            console.error("Şifre değiştirme hatası:", err.response?.data || err);
-            setIsError(true);
-            setMessage(err.response?.data?.detail || "Şifre güncellenemedi.");
-        } finally {
-            setSubmitting(false);
-        }
+            console.error("Şifre değiştirme hatası:", err.response?.data || err); setIsError(true); setMessage(err.response?.data?.detail || "Şifre güncellenemedi.");
+        } finally { setSubmitting(false); }
     };
 
 
-    if (loading)
-        return (
-            <div className="d-flex justify-content-center align-items-center vh-100">
-                <Loader size={32} className="spinner-grow text-dark" />
-            </div>
-        );
+    if (loading) return (
+        <div className="d-flex justify-content-center align-items-center vh-100">
+            <Loader size={32} className="spinner-grow text-dark" />
+        </div>
+    );
 
     return (
         <div className="container py-5">
-
+            {/* ... Başlık ve Yenile Butonu ... */}
             <div className="d-flex align-items-center justify-content-between mb-4">
                 <div className="d-flex align-items-center text-dark">
                     <User size={32} className="me-2" />
                     <h2 className="fw-bold m-0 text-dark">Profilim</h2>
                 </div>
-
                 <button className="btn btn-outline-dark btn-sm rounded-pill px-3" onClick={fetchData} disabled={submitting}>
                     <RefreshCw size={16} className="me-1" /> Yenile
                 </button>
@@ -390,15 +473,14 @@ const Profile = ({ user }) => {
             <div className="row">
                 <div className="col-md-3 mb-4">
                     <div className="list-group shadow-sm border-0">
-
+                        {/* ... Sekmeler ... */}
                         <button
                             className={`list-group-item list-group-item-action py-3 ${activeTab === "orders" ? "active bg-dark text-white fw-bold" : ""
                                 }`}
-                            onClick={() => {setActiveTab("orders"); setSelectedOrderId(null);}} // Sekme değiştirince detayı kapat
+                            onClick={() => { setActiveTab("orders"); setSelectedOrderId(null); setOrderToReturn(null); }}
                         >
                             <ShoppingBag size={18} className="me-2" /> Siparişlerim
                         </button>
-
                         <button
                             className={`list-group-item list-group-item-action py-3 ${activeTab === "info" ? "active bg-dark text-white fw-bold" : ""
                                 }`}
@@ -406,7 +488,6 @@ const Profile = ({ user }) => {
                         >
                             <User size={18} className="me-2" /> Bilgilerim
                         </button>
-
                     </div>
                 </div>
 
@@ -419,15 +500,24 @@ const Profile = ({ user }) => {
                     {/* Siparişlerim Sekmesi */}
                     {activeTab === "orders" && (
                         <>
-                            {/* KOŞULLU RENDERLAMA: Detay veya Liste */}
-                            {selectedOrderId ? (
+                            {/* 🎯 KRİTİK: TALEP FORMU GÖSTERİMİ */}
+                            {orderToReturn ? (
+                                <ReturnRequestForm
+                                    order={orderToReturn}
+                                    onBack={handleBackToOrders}
+                                    onSubmit={handleReturnSubmit}
+                                    isSubmitting={submitting}
+                                />
+                            ) : selectedOrderId ? (
                                 // Sipariş Detay Görünümü
-                                <OrderDetail 
-                                    orderId={selectedOrderId} 
+                                <OrderDetail
+                                    orderId={selectedOrderId}
                                     onBack={handleBackToOrders}
                                     onCancel={handleCancelOrder}
+                                    onRequestReturn={handleRequestReturn}
                                     isSubmitting={submitting}
                                     getStatusBadge={getStatusBadge}
+                                    orderDetail={currentOrderDetail} // Detay verisini gönderiyoruz
                                 />
                             ) : (
                                 // Sipariş Listesi Görünümü
@@ -464,9 +554,7 @@ const Profile = ({ user }) => {
                                                                 <td className="ps-4 fw-bold">#{order.OrderID}</td>
                                                                 <td>{new Date(order.OrderDate).toLocaleDateString('tr-TR')}</td>
                                                                 <td className="fw-bold text-success">₺{parseFloat(order.TotalAmount).toLocaleString()}</td>
-                                                                <td>
-                                                                    {getStatusBadge(order.Status)}
-                                                                </td>
+                                                                <td>{getStatusBadge(order.Status)}</td>
                                                                 <td className="text-end pe-4">
                                                                     <button className="btn btn-sm btn-outline-dark" onClick={(e) => { e.stopPropagation(); handleOrderClick(order.OrderID); }}>
                                                                         Detay
@@ -491,7 +579,7 @@ const Profile = ({ user }) => {
                         </>
                     )}
 
-                    {/* BİLGİLER Sekmesi */}
+                    {/* BİLGİLER Sekmesi (Aynı kaldı) */}
                     {activeTab === "info" && (
                         <>
                             <div className="card p-4 shadow-sm border-0 mb-4">
@@ -511,7 +599,6 @@ const Profile = ({ user }) => {
                                             required
                                         />
                                     </div>
-
                                     <div className="col-md-6">
                                         <label className="form-label">Telefon</label>
                                         <input
@@ -522,7 +609,6 @@ const Profile = ({ user }) => {
                                             className="form-control bg-light border-0"
                                         />
                                     </div>
-
                                     <div className="col-12">
                                         <label className="form-label">Adres</label>
                                         <textarea
@@ -533,7 +619,6 @@ const Profile = ({ user }) => {
                                             rows="3"
                                         ></textarea>
                                     </div>
-
                                     <div className="col-md-6">
                                         <label className="form-label">Şehir</label>
                                         <input
@@ -544,7 +629,6 @@ const Profile = ({ user }) => {
                                             className="form-control bg-light border-0"
                                         />
                                     </div>
-
                                     <div className="col-md-6">
                                         <label className="form-label">Ülke</label>
                                         <input
@@ -555,7 +639,6 @@ const Profile = ({ user }) => {
                                             className="form-control bg-light border-0"
                                         />
                                     </div>
-
                                     <div className="col-12 text-end">
                                         <button className="btn btn-dark px-4" disabled={submitting}>
                                             {submitting ? "Güncelleniyor..." : "Güncelle"}
@@ -563,7 +646,6 @@ const Profile = ({ user }) => {
                                     </div>
                                 </form>
                             </div>
-
                             <div className="card p-4 shadow-sm border-0">
                                 <h4 className="fw-bold mb-4 border-bottom pb-2">
                                     <KeyRound className="me-2" /> Şifre Değiştir
@@ -581,7 +663,6 @@ const Profile = ({ user }) => {
                                             required
                                         />
                                     </div>
-
                                     <div className="col-md-6">
                                         <label className="form-label">Yeni Şifre</label>
                                         <input
@@ -593,7 +674,6 @@ const Profile = ({ user }) => {
                                             required
                                         />
                                     </div>
-
                                     <div className="col-md-6">
                                         <label className="form-label">Yeni Şifre (Tekrar)</label>
                                         <input
@@ -605,7 +685,6 @@ const Profile = ({ user }) => {
                                             required
                                         />
                                     </div>
-
                                     <div className="col-12 text-end">
                                         <button className="btn btn-warning px-4" disabled={submitting}>
                                             {submitting ? "Değiştiriliyor..." : "Şifreyi Değiştir"}
@@ -621,4 +700,4 @@ const Profile = ({ user }) => {
     );
 };
 
-export default Profile;
+export default Profile; 

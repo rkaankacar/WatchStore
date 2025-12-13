@@ -16,6 +16,7 @@ from backend.models.brands import brands
 from backend.models.orders import orders
 from backend.models.users import users
 from backend.models.payments import payments
+from backend.models.returns import returns
 
 async def create_schema_and_tables():
     print("--- SCHEMA VE TABLO OLUŞTURMA BAŞLADI ---")

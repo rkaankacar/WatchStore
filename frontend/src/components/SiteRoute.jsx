@@ -17,6 +17,7 @@ import Careers from './Careers';
 import Contact from './Contact';
 import FAQ from './FAQ';
 import Profile from './Profile';// <-- Profile bileşeninizi buraya eklediğinizden emin olun
+import ReturnDetails from './ReturnDetails';
 
 
 export default function SiteRoute({ handleLogin, user }) {
@@ -39,7 +40,7 @@ export default function SiteRoute({ handleLogin, user }) {
       <Route path="/careers" element={<Careers />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/faq" element={<FAQ />} />
-
+      <Route path="/return-details" element={<ReturnDetails />} />
       <Route path="/login" element={<Login onLogin={handleLogin} />} />
       <Route path="/register" element={<Register />} />
 

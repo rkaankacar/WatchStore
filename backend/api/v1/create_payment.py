@@ -20,55 +20,7 @@ async def create_payment(
     # Burada direkt HTML içeriğini döndürüyoruz ki, frontend Iyzico'ya yönlendirmeyi yapsın.
     return {"checkoutFormContent": checkout_content}
 
-
-'''@router.post("/callback") # response_class'ı kaldırdık veya RedirectResponse yapabiliriz
-async def iyzico_callback(
-    # Iyzico, token'ı POST body'de 'token' adıyla gönderir. FastAPI'de bunu Form ile yakalarız.
-    token: str = Form(...), 
-    db: AsyncSession = Depends(get_async_db)
-):
-    """
-    Iyzico tarafından ödeme tamamlandıktan sonra çağrılan geri bildirim (callback) endpoint'i.
-    Ödeme başarılıysa siparişi oluşturur ve müşteriyi Siparişlerim sayfasına yönlendirir.
-    """
-    
-    # Başarılı ve başarısız yönlendirme adreslerinizi buraya tanımlayın
-    # Not: Port numaranız (5173) ve yolunuz (profile/orders) frontend uygulamanıza göre ayarlanmalıdır.
-    SUCCESS_URL = "http://localhost:5173/profil" 
-    FAILURE_URL = "http://localhost:5173/checkout"
-
-    try:
-        # 1. Ödeme ve Sipariş Oluşturma İşlemini Başlat
-        # Bu işlem ödeme kontrolünü yapar, siparişi kaydeder, stoğu düşürür ve sepeti temizler.
-        result = await payment_crud.handle_payment_callback(db, token=token)
-        
-        # 2. BAŞARILI DURUM: Müşteriyi doğrudan Siparişlerim sayfasına yönlendir.
-        # Sipariş ID'sini Query Parametresi olarak eklemek faydalı olabilir.
-        return RedirectResponse(
-            url=f"{SUCCESS_URL}?order_id={result.get('order_id')}", 
-            status_code=303 # HTTP 303 See Other, POST sonrası yönlendirme için en uygun koddur.
-        )
-
-    except HTTPException as e:
-        # Ödeme BAŞARISIZ (Iyzico'dan gelen hata veya Stok Yetersizliği gibi CRUD hataları)
-        error_detail = e.detail
-        
-        # Hata detayını QUERY parametresi ile hata sayfasına gönder.
-        return RedirectResponse(
-            url=f"{FAILURE_URL}?error={error_detail}", 
-            status_code=303
-        )
-        
-    except Exception as e:
-        # KRİTİK HATA (Veritabanı bağlantısı koptu vb.)
-        error_detail = "Bilinmeyen kritik hata oluştu."
-        
-        # Kritik hatayı hata sayfasına yönlendir.
-        return RedirectResponse(
-            url=f"{FAILURE_URL}?error={error_detail}", 
-            status_code=303
-        )'''
-        
+     
 @router.post("/callback") 
 async def iyzico_callback(
     # Iyzico, token'ı POST body'de 'token' adıyla gönderir. FastAPI'de bunu Form ile yakalarız.

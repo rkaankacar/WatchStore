@@ -26,3 +26,5 @@ class orders(Base):
     order_details = relationship("ordersdetails", back_populates="order")
     
     payments = relationship("payments", back_populates="order")
+    
+    returns = relationship("returns", back_populates="order", uselist=False)

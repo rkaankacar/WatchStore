@@ -25,10 +25,11 @@ from backend.models.watches_images import watches_images
 from backend.models.brands import brands
 from backend.models.orders import orders
 from backend.models.users import users
+from backend.models.returns import returns
 
 # --- ROUTER IMPORTLARI ---
 from backend.routers import auth, utils
-from backend.api.v1 import brands, cart, orders, reviews, watches, users, favorites, create_payment
+from backend.api.v1 import brands, cart, orders, reviews, watches, users, favorites, create_payment, returns
 
 # --- 1. Uygulama Yaratma Fabrika Fonksiyonu ---
 def create_application() -> FastAPI:
@@ -78,7 +79,7 @@ def create_application() -> FastAPI:
     app.include_router(favorites.router, prefix="/api/v1/favorites", tags=["Favorites"])
     app.include_router(utils.router, prefix="/api/v1", tags=["Utils"])
     app.include_router(create_payment.router, prefix="/api/v1/payment", tags=["Payment"])
-    
+    app.include_router(returns.router, prefix="/api/v1/returns", tags=["returns"])
     #
     return app
 
