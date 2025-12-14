@@ -83,6 +83,10 @@ def create_application() -> FastAPI:
     #
     return app
 
+
+
+
+
 # Uygulamayı ayağa kaldır
 app = create_application()
 
@@ -119,3 +123,4 @@ async def shutdown_event():
     
     
     # uvicorn backend.main:app --reload
+    # celery -A backend.worker.celery_app worker -l INFO -P solo

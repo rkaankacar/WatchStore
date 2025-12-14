@@ -5,6 +5,8 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime
 from fastapi import HTTPException, status
 from decimal import Decimal
+from backend.worker.tasks import send_order_email_task
+
 from backend.crud.base import CRUDBase
 # İLİŞKİSEL YÜKLEME İÇİN GEREKLİ MODELLER
 from backend.models import orders, ordersdetails, cart, watches, users 
@@ -13,7 +15,7 @@ from backend.schemas import OrderCreate, OrderUpdate, OrderDetailCreate, OrderDe
 # Sepet ve Saat CRUD'larını import ediyoruz
 from backend.crud.crud_cart import cart_crud 
 from backend.crud.crud_watch import watch as watch_crud 
-
+from backend.crud.crud_user import user 
 # --- SİPARİŞ DETAYLARI (Değişmedi) ---
 class CRUDOrderDetail(CRUDBase[ordersdetails, OrderDetailCreate, OrderDetailUpdate]):
     pass
@@ -117,7 +119,12 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
     ) -> orders:
         # ... (Stok kontrolü ve sipariş oluşturma mantığı aynı kalır) ...
         # Bu fonksiyonun içi, önceki gönderdiğiniz haliyle korunmuştur.
-
+        user_obj = await user.get(db, id=user_id)
+        if not user_obj:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kullanıcı bulunamadı.")
+        
+        customer_email = user_obj.Email
+        
         cart_items = await cart_crud.get_multi_by_user(db, user_id=user_id)
 
         if not cart_items:
@@ -126,6 +133,7 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
         # Karmaşık iş mantığı burada devam ediyor...
         total_amount = Decimal("0.0")
         order_details_data = []
+        products_list_for_email = []
 
         for item in cart_items:
             watch = await watch_crud.get(db, id=item.WatchID) 
@@ -146,6 +154,12 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
                 "WatchID": watch.WatchID,
                 "Quantity": item.Quantity,
                 "UnitPrice": watch.Price
+            })
+            
+            products_list_for_email.append({
+                "name": watch.ModelName,
+                "quantity": item.Quantity,
+                "price": float(watch.Price)
             })
             
             # Stoktan düş
@@ -182,6 +196,21 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
         # Tüm işlemleri onayla
         await db.commit()
         await db.refresh(new_order)
+        
+        email_order_details = {
+            "order_id": str(new_order.OrderID),
+            "customer_email": customer_email,
+            "total_price": float(new_order.TotalAmount),
+            "products": products_list_for_email
+        }
+        
+        try:
+            task= send_order_email_task.delay(email_order_details)
+            
+        except Exception as e:
+            print(f"Email gönderme görevi başlatılamadı: {e}")
+        
+        
         
         return new_order
 
