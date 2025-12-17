@@ -11,6 +11,16 @@ from backend.crud.base import CRUDBase
 # İLİŞKİSEL YÜKLEME İÇİN GEREKLİ MODELLER
 from backend.models import orders, ordersdetails, cart, watches, users 
 from backend.schemas import OrderCreate, OrderUpdate, OrderDetailCreate, OrderDetailUpdate
+from backend.exceptions import (
+    OrderNotFound, 
+    OrderAccessDenied, 
+    OrderEmptyCart, 
+    OrderInsufficientStock,
+    OrderCannotBeCancelled,
+    OrderInvalidStatusUpdate,
+    UserNotFound,
+    OrderSystemError
+)
 
 # Sepet ve Saat CRUD'larını import ediyoruz
 from backend.crud.crud_cart import cart_crud 
@@ -95,17 +105,11 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
         
         # 1. Varlık Kontrolü
         if not order:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail="Sipariş bulunamadı"
-            )
+            raise OrderNotFound()
             
         # 2. Sahiplik Kontrolü
         if order.UserID != current_user.UserID:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, 
-                detail="Bu siparişi görüntüleme yetkiniz yok."
-            )
+            raise OrderAccessDenied()
             
         return order
     
@@ -121,14 +125,14 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
         # Bu fonksiyonun içi, önceki gönderdiğiniz haliyle korunmuştur.
         user_obj = await user.get(db, id=user_id)
         if not user_obj:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kullanıcı bulunamadı.")
+            raise UserNotFound()
         
         customer_email = user_obj.Email
         
         cart_items = await cart_crud.get_multi_by_user(db, user_id=user_id)
 
         if not cart_items:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sepetiniz boş, sipariş verilemez.")
+            raise OrderEmptyCart()
         
         # Karmaşık iş mantığı burada devam ediyor...
         total_amount = Decimal("0.0")
@@ -142,10 +146,7 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
                 continue 
                 
             if watch.Stock < item.Quantity:
-                 raise HTTPException(
-                     status_code=status.HTTP_400_BAD_REQUEST, 
-                     detail=f"Stok yetersiz: {watch.ModelName} (Kalan: {watch.Stock})"
-                 )
+                 raise OrderInsufficientStock(watch.ModelName, watch.Stock)
 
             line_total = Decimal(str(watch.Price)) * item.Quantity
             total_amount += line_total
@@ -230,10 +231,7 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
         order = await self.get(db, id=order_id) 
 
         if not order:
-         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Sipariş bulunamadı"
-        )
+         raise OrderNotFound()
 
     # 2. Güncelleme İşlemini Gerçekleştir (self.update içinde commit olmadığı varsayımıyla devam ediyoruz)
     # db_obj'yi güncelleyen metod çağrılır.
@@ -250,10 +248,14 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
     
     
         if not updated_order_eager:
-            raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Sipariş güncellendi ancak ilişkili veri çekilemedi. Veritabanı hatası."
-         )
+            # 500 error remains standard or we create a specific SystemError, but standard HTTP exception for 500 is often fine as it is unexpected
+            # But let's stay consistent if strict. But here it is an internal consistency check.
+            # I will leave HTTPException(500) or use a Generic 'OrderSystemError'? 
+            # The prompt asked for error handling. Let's use a generic HTTP 500 equivalent if possible or just leave it for now as it is "unexpected".
+            # Actually let's just stick to the plan: remove HTTPExceptions.
+            raise OrderSystemError(
+                detail="Sipariş güncellendi ancak ilişkili veri çekilemedi. Veritabanı hatası."
+             )
 
         return updated_order_eager
             
@@ -275,21 +277,18 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
 
     # Varlık kontrolü
         if not order:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sipariş bulunamadı.")
+            raise OrderNotFound()
     
     # Sahiplik kontrolü
         if order.UserID != current_user.UserID:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bu siparişe erişim yetkiniz yok.")
+            raise OrderAccessDenied()
 
     # İptal etme kuralı kontrolü
         new_status = status_in.model_dump(exclude_unset=True, by_alias=True).get("Status")
     
         if new_status == 'İptal Edildi':
             if order.Status != 'Hazırlanıyor':
-                raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Sipariş '{order.Status}' durumunda olduğu için iptal edilemez."
-            )
+                raise OrderCannotBeCancelled(order.Status)
             
         # Güncelleme ve Commit
             order.Status = new_status
@@ -301,7 +300,7 @@ class CRUDOrder(CRUDBase[orders, OrderCreate, OrderUpdate]):
         # Eğer iptal edilen ürünlerin stoğu geri ekleniyorsa, o mantık buraya gelir.
         
         else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bu endpoint sadece 'İptal Edildi' durumu için kullanılabilir.")
+            raise OrderInvalidStatusUpdate()
 
     # Eager Loading ile çekilmiş siparişi döndür
     # Zaten sorguyu Eager Loading ile yaptığımız için 'order' nesnesini döndürebiliriz.

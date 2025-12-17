@@ -1,198 +1,158 @@
 # Saat Satış E-Ticaret Platformu 🕐
 
-Modern ve kullanıcı dostu bir saat satış e-ticaret platformu. FastAPI backend ve React frontend ile geliştirilmiş tam özellikli bir online mağaza sistemi.
+Modern teknolojilerle geliştirilmiş, güvenli ve ölçeklenebilir bir online saat satış platformu. Backend tarafında FastAPI'nin asenkron gücünü, frontend tarafında ise React 19 ve Vite'ın hızını kullanır.
 
 ## 🌟 Özellikler
 
-### 👤 Kullanıcı Özellikleri
-- **Kullanıcı Kaydı ve Girişi**: JWT tabanlı güvenli kimlik doğrulama
-- **Profil Yönetimi**: Kişisel bilgiler ve şifre güncelleme
-- **Favoriler**: Ürünleri favorilere ekleme ve yönetme
-- **Sepet Yönetimi**: Alışveriş sepeti işlemleri
-- **Sipariş Geçmişi**: Geçmiş siparişleri görüntüleme ve takip
-- **İade Talepleri**: Sipariş iade süreci yönetimi
-- **Ürün Yorumları**: Ürünler için puanlama ve yorum yapma
+### 👤 Kullanıcı Deneyimi
+- **Güvenli Kimlik Doğrulama**: JWT tabanlı kayıt ve giriş sistemi.
+- **Profil Yönetimi**: Kullanıcı bilgileri, adres defteri ve şifre işlemleri.
+- **Favoriler**: Beğenilen ürünleri kaydetme ve yönetme.
+- **Değerlendirme Sistemi**: Ürünlere puan verme ve yorum yapma.
+- **İade Süreci**: Kolay ve takip edilebilir ürün iade sistemi.
 
-### 🛒 Alışveriş Özellikleri
-- **Ürün Kataloğu**: Markalara göre filtrelenmiş saat koleksiyonu
-- **Detaylı Ürün Sayfaları**: Yüksek kaliteli görseller ve teknik özellikler
-- **Stok Yönetimi**: Gerçek zamanlı stok kontrolü
-- **Gelişmiş Arama**: Ürün adı ve markaya göre arama
-- **Sepet İşlemleri**: Ürün ekleme, çıkarma, miktar güncelleme
+### 🛒 E-Ticaret Fonksiyonları
+- **Gelişmiş Ürün Kataloğu**: Marka ve kategori bazlı filtreleme.
+- **Akıllı Sepet**: Stok kontrollü sepet yönetimi.
+- **Ödeme Entegrasyonu**: Iyzico ile güvenli kredi kartı ödemeleri.
+- **Sipariş Takibi**: Sipariş durumu ve geçmiş sipariş detayları.
 
-### 💳 Ödeme ve Sipariş
-- **Iyzico Entegrasyonu**: Güvenli ödeme sistemi
-- **Sipariş Takibi**: Sipariş durumları ve geçmiş
-- **E-posta Bildirimleri**: Sipariş onayları ve güncellemeler
-- **Fatura Oluşturma**: Otomatik HTML fatura gönderimi
+### 👨‍💻 Teknik Özellikler
+- **Performans**: Asenkron veritabanı sorguları ve hızlı API yanıtları.
+- **Arka Plan İşlemleri**: Celery ve Redis ile e-posta gönderimi gibi asenkron görevler.
+- **Modern Frontend**: React 19, React Router v7 ve Bootstrap 5 ile responsive tasarım.
 
-### 👨‍💼 Yönetici Paneli
-- **Ürün Yönetimi**: Saat ekleme, düzenleme, silme
-- **Marka Yönetimi**: Marka bilgilerini yönetme
-- **Sipariş Yönetimi**: Tüm siparişleri görüntüleme ve durum güncelleme
-- **Kullanıcı Yönetimi**: Kullanıcı hesaplarını yönetme
-- **İade İşlemleri**: İade taleplerini onaylama/reddetme
-
-## 🛠️ Teknoloji Altyapısı
+## 🛠️ Teknoloji Yığını
 
 ### Backend
-- **FastAPI**: Yüksek performanslı asenkron web framework
-- **PostgreSQL**: Güçlü ve ölçeklenebilir veritabanı
-- **SQLAlchemy**: ORM ile veritabanı işlemleri
-- **JWT**: Güvenli token tabanlı kimlik doğrulama
-- **Celery**: Arka plan görevleri (e-posta gönderimi)
-- **Redis**: Görev kuyruğu için
-- **Aiosmtplib**: E-posta gönderimi
-- **Iyzico**: Ödeme entegrasyonu
+- **Dil**: Python 3.8+
+- **Framework**: FastAPI
+- **Veritabanı**: PostgreSQL (AsyncPG sürücüsü ile)
+- **ORM**: SQLAlchemy (Asenkron)
+- **Şema Doğrulama**: Pydantic
+- **Kuyruk Sistemi**: Redis & Celery
+- **Ödeme**: Iyzipay (Iyzico)
 
 ### Frontend
-- **React 19**: Modern JavaScript kütüphanesi
-- **Vite**: Hızlı geliştirme sunucusu ve build tool
-- **React Router**: Sayfa yönlendirme
-- **Bootstrap 5**: Responsive tasarım
-- **Axios**: HTTP istekleri
-- **Lucide React**: İkon kütüphanesi
-
-## 🚀 Kurulum ve Çalıştırma
-
-### Gereksinimler
-- Python 3.8+
-- Node.js 16+
-- PostgreSQL
-- Redis (e-posta görevleri için)
-- Ngrok (İyzico için)
-- Docker (Redis için)
-
-### Backend Kurulumu
-
-1. **Sanal ortam oluşturun:**
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-```
-
-2. **Bağımlılıkları yükleyin:**
-```bash
-pip install -r requirements.txt
-```
-
-3. **Veritabanını hazırlayın:**
-```bash
-python create_db_schema.py
-```
-
-4. **Ortam değişkenlerini ayarlayın (.env dosyası):**
-```env
-ASYNC_DATABASE_URL=postgresql+asyncpg://kullanici:sifre@localhost:5432/veritabani
-SECRET_KEY=guvenli_jwt_anahtari
-REDIS_URL=redis://localhost:6379/0
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-SENDER_EMAIL=sizin_email@gmail.com
-SENDER_PASSWORD=email_sifresi
-```
-
-5. **Sunucuyu başlatın:**
-```bash
-uvicorn backend.main:app --reload
-```
-
-### Frontend Kurulumu
-
-1. **Bağımlılıkları yükleyin:**
-```bash
-cd frontend
-npm install
-```
-
-2. **Geliştirme sunucusunu başlatın:**
-```bash
-npm run dev
-```
+- **Framework**: React 19
+- **Build Tool**: Vite
+- **UI Kit**: Bootstrap 5
+- **İkonlar**: Lucide React
+- **HTTP İstemcisi**: Axios
+- **Yönlendirme**: React Router DOM
 
 ## 📁 Proje Yapısı
 
 ```
 saati-satis-yeni/
 ├── backend/
-│   ├── api/v1/          # API endpoint'leri
-│   ├── core/            # Yapılandırma ve güvenlik
-│   ├── crud/            # Veritabanı işlemleri
-│   ├── database/        # Veritabanı bağlantısı
-│   ├── models/          # SQLAlchemy modelleri
-│   ├── routers/         # Ek router'lar
-│   ├── schemas/         # Pydantic şemaları
+│   ├── api/v1/          # REST API endpointleri (auth, watches, cart, vb.)
+│   ├── core/            # Config ve güvenlik ayarları
+│   ├── crud/            # Veritabanı sorgu katmanı
+│   ├── database/        # DB bağlantı oturumu
+│   ├── models/          # SQLAlchemy veritabanı modelleri
+│   ├── schemas/         # Pydantic veri şemaları
 │   ├── static/          # Statik dosyalar
-│   ├── tests/           # Test dosyaları
-│   └── worker/          # Celery görevleri
+│   ├── worker/          # Celery worker yapılandırması
+│   ├── main.py          # Uygulama giriş noktası
+│   └── create_db_schema.py # Veritabanı kurulum scripti
 ├── frontend/
-│   ├── public/          # Statik varlıklar
-│   ├── src/
-│   │   ├── components/  # React bileşenleri
-│   │   ├── api.js       # API yapılandırması
-│   │   └── assets/      # Görseller ve stiller
-│   └── package.json
-├── .gitignore
+│   ├── src/             # React kaynak kodları
+│   │   ├── components/  # Reusable bileşenler
+│   │   ├── pages/       # Uygulama sayfaları
+│   │   └── api.js       # API bağlantı noktası
+│   ├── public/          # Statik assetler
+│   └── vite.config.js   # Vite yapılandırması
+├── requirements.txt     # Python bağımlılıkları
 └── README.md
 ```
 
-## 🔧 API Dokümantasyonu
+## 🚀 Kurulum ve Çalıştırma
 
-Backend sunucusu çalıştığında API dokümantasyonuna şu adresten erişebilirsiniz:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+### Ön Hazırlıklar
+Aşağıdaki servislerin sisteminizde kurulu olduğundan emin olun:
+- Python 3.8+
+- Node.js 16+
+- PostgreSQL
+- Redis (Arka plan görevleri için)
 
-## 📧 E-posta Yapılandırması
+### 1. Backend Kurulumu
 
-E-posta bildirimleri için SMTP ayarlarını `.env` dosyasında yapılandırın:
+Proje kök dizininde bir terminal açın:
+
+```bash
+# Sanal ortam oluşturma
+python -m venv venv
+
+# Sanal ortamı aktif etme
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# Bağımlılıkları yükleme
+pip install -r requirements.txt
+```
+
+**.env Dosyası Oluşturma**
+`backend/.env` (veya kök dizinde, yapılandırmanıza göre) aşağıdaki içeriğe sahip bir dosya oluşturun:
 
 ```env
+# Veritabanı
+ASYNC_DATABASE_URL=postgresql+asyncpg://kullanici:sifre@localhost:5432/veritabani_adi
+SCHEMA_NAME=saat_satis
+
+# Güvenlik
+SECRET_KEY=guclu_ve_gizli_bir_anahtar_olusturun
+ALGORITHM=HS256
+
+# Redis (Opsiyonel - Celery için)
+REDIS_URL=redis://localhost:6379/0
+
+# E-posta (Opsiyonel - Bildirimler için)
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SENDER_EMAIL=sizin_email@gmail.com
 SENDER_PASSWORD=uygulama_sifresi
 ```
 
-**Not**: Gmail kullanıyorsanız, uygulama şifresi oluşturmanız gerekebilir.
-
-## 🧪 Test Çalıştırma
+**Veritabanını Hazırlama**
 
 ```bash
-cd backend
-pytest tests/
+python backend/create_db_schema.py
 ```
 
-## 🚀 Production Dağıtımı
+**Uygulamayı Başlatma**
 
-### Backend
 ```bash
-# Gunicorn ile production
-gunicorn backend.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+uvicorn backend.main:app --reload
 ```
+API artık `http://localhost:8000` adresinde çalışmaktadır.
+Swagger Dokümantasyonu: `http://localhost:8000/docs`
 
-### Frontend
+### 2. Frontend Kurulumu
+
+Yeni bir terminal açın ve `frontend` klasörüne gidin:
+
 ```bash
 cd frontend
-npm run build
-# dist/ klasörünü web sunucunuza yükleyin
+
+# Paketleri yükleme
+npm install
+
+# Geliştirme sunucusunu başlatma
+npm run dev
 ```
+Uygulama `http://localhost:5173` adresinde yayına başlayacaktır.
 
 ## 🤝 Katkıda Bulunma
 
-1. Fork edin
-2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
-3. Commit edin (`git commit -m 'Add amazing feature'`)
-4. Push edin (`git push origin feature/amazing-feature`)
-5. Pull Request oluşturun
+1. Bu depoyu fork edin.
+2. Yeni bir feature branch oluşturun (`git checkout -b feature/YeniOzellik`).
+3. Değişikliklerinizi commit edin (`git commit -m 'Yeni özellik eklendi'`).
+4. Branch'inizi push edin (`git push origin feature/YeniOzellik`).
+5. Bir Pull Request oluşturun.
 
 ## 📝 Lisans
 
-Bu proje MIT lisansı altında lisanslanmıştır.
-
-docker ps
----
-
-**Geliştirici**: Kaan
-**Versiyon**: 1.0.0
-**Son Güncelleme**: 2024
+Bu proje MIT Lisansı ile lisanslanmıştır.

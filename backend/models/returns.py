@@ -12,6 +12,7 @@ class returns(Base):
     ReturnID = Column(Integer, primary_key=True, index=True)
     OrderID = Column(Integer, ForeignKey("orders.OrderID"))
     UserID = Column(Integer, ForeignKey("users.UserID"))
+    OrderDetailID = Column(Integer, ForeignKey("orderdetails.OrderDetailID"), nullable=True)
     
     # Talep Tipi: "İade" veya "Değişim"
     RequestType = Column(String(20), nullable=False) 
@@ -28,3 +29,8 @@ class returns(Base):
     # İlişkiler
     order = relationship("orders", back_populates="returns")
     user = relationship("users")
+    order_detail = relationship("ordersdetails")
+
+    @property
+    def UserName(self):
+        return self.user.FullName if self.user else None

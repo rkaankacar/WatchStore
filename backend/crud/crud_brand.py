@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from backend.crud.base import CRUDBase
 from backend.models import brands
 from backend.schemas import BrandCreate, BrandUpdate
+from backend.exceptions.brand_errors import BrandNotFound
 
 ModelType = TypeVar("ModelType", bound=brands)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -70,10 +71,7 @@ class CRUDBrand(CRUDBase[brands, BrandCreate, BrandUpdate]):
         # Artık self.get() ilişkiyi yüklüyor.
         brand = await self.get(db, id=id)
         if brand is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Marka bulunamadı"
-            )
+            raise BrandNotFound()
         return brand
 
     # Yeni Fonksiyon: 4. Endpoint için: Markayı günceller, önce varlığını kontrol eder.

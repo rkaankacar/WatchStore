@@ -8,6 +8,13 @@ from pydantic import BaseModel
 from backend.crud.base import CRUDBase
 from backend.models import users
 from backend.schemas import UserCreate, UserUpdate, UserSimpleResponse
+from backend.exceptions import (
+    UserNotFound, 
+    UserAlreadyExists,
+    PasswordIncorrect,
+    PasswordMismatch,
+    PasswordSame
+)
 
 # Şifre hashleme context'i
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -44,10 +51,7 @@ class CRUDUser(CRUDBase[users, UserCreate, UserUpdate]):
         existing_user = await self.get_by_email(db, email=obj_in.email)
         
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Bu email adresi zaten kullanılıyor."
-            )
+            raise UserAlreadyExists()
             
         # 2. Veriyi hazırlar ve ŞİFREYİ HASH'LER
         create_data = obj_in.model_dump(by_alias=True, exclude_unset=True) 
@@ -88,10 +92,7 @@ class CRUDUser(CRUDBase[users, UserCreate, UserUpdate]):
         
         user = await self.get(db, id=id) 
         if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Kullanıcı bulunamadı"
-            )
+            raise UserNotFound()
         return user
         
     async def update_or_404(
@@ -143,24 +144,15 @@ class CRUDUser(CRUDBase[users, UserCreate, UserUpdate]):
 
         # 2. Mevcut şifre doğru mu?
         if not pwd_context.verify(current_password, user.Password):
-            raise HTTPException(
-                status_code=400,
-                detail="Mevcut şifre yanlış!"
-            )
+            raise PasswordIncorrect()
 
         # 3. Yeni şifre ile tekrarı aynı mı?
         if new_password != new_password_again:
-            raise HTTPException(
-                status_code=400,
-                detail="Yeni şifreler aynı değil!"
-            )
+            raise PasswordMismatch()
 
         # 4. Yeni şifre mevcut şifre ile aynı mı? (Güvenlik kontrolü)
         if pwd_context.verify(new_password, user.Password):
-            raise HTTPException(
-                status_code=400,
-                detail="Yeni şifre mevcut şifre ile aynı olamaz!"
-            )
+            raise PasswordSame()
 
         # 5. Yeni şifreyi hashle
         hashed_password = pwd_context.hash(new_password)
@@ -178,7 +170,7 @@ class CRUDUser(CRUDBase[users, UserCreate, UserUpdate]):
     async def get_or_profile(self, db: AsyncSession, *, id: int) -> UserSimpleResponse:
         user = await self.get(db, id=id)
         if not user:
-            raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+            raise UserNotFound()
         
         return UserSimpleResponse.model_validate(user, from_attributes=True)
     

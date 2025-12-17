@@ -23,13 +23,13 @@ from backend.models.reviews import reviews
 from backend.models.ordersdetails import ordersdetails
 from backend.models.watches_images import watches_images
 from backend.models.brands import brands
-from backend.models.orders import orders
+from backend.models.orders import orders as OrdersModel
 from backend.models.users import users
 from backend.models.returns import returns
+from backend.models.payments import payments
 
 # --- ROUTER IMPORTLARI ---
-from backend.routers import auth, utils
-from backend.api.v1 import brands, cart, orders, reviews, watches, users, favorites, create_payment, returns
+from backend.api.v1 import auth, utils, brands, cart, orders, reviews, watches, users, favorites, create_payment, returns
 
 # --- 1. Uygulama Yaratma Fabrika Fonksiyonu ---
 def create_application() -> FastAPI:

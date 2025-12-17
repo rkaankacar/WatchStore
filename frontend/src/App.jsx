@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import SiteRoute from './components/SiteRoute';
 import Footer from './components/Footer';
-import { setLogoutHandler } from './api'; // logout handler ekledik
+import { setLogoutHandler } from './services/api'; // logout handler ekledik
 
 function App() {
   const [user, setUser] = useState(null);

@@ -8,10 +8,10 @@ from sqlalchemy import delete
 # CRUDBase'i kullanmıyorsun, bu yüzden bu import kaldırıldı
 # from backend.crud.base import CRUDBase 
 
-# 🎯 DÜZELTME 1: Model Sınıfını (Favorites) ve diğerlerini doğru yoldan import ediyoruz
 from backend.models import favorites as FavoritesModel # Model Sınıfına yeni isim verdik
 from backend.models import users, watches 
 from backend.schemas import FavoriteCreate, FavoriteResponse
+from backend.exceptions import FavoriteNotFound, FavoriteAccessDenied
 
 class CRUDFavorites:
 
@@ -98,16 +98,10 @@ class CRUDFavorites:
         fav_to_remove = await self.get(db, id=favorite_id)
 
         if not fav_to_remove:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Favori öğesi bulunamadı"
-            )
+            raise FavoriteNotFound()
 
         if fav_to_remove.UserID != current_user.UserID:
-              raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Bu favori öğesini silme yetkiniz yok"
-            )
+              raise FavoriteAccessDenied()
 
         await db.delete(fav_to_remove)
         await db.commit()

@@ -9,7 +9,7 @@ from backend.crud.base import CRUDBase
 from backend.models import users, watches 
 from backend.models import cart as CartModel # Cart model sınıfını çekiyoruz
 from backend.schemas import CartCreate, CartUpdate
-
+from backend.exceptions import CartItemNotFound, CartAccessDenied
 
 # 🎯 DÜZELTME 2: CRUDBase'i Model Sınıfı olan CartModel ile başlatıyoruz
 class CRUDCart(CRUDBase[CartModel, CartCreate, CartUpdate]):
@@ -97,16 +97,10 @@ class CRUDCart(CRUDBase[CartModel, CartCreate, CartUpdate]):
 
         # ... (Kontrollerin geri kalanı aynı) ...
         if not cart_item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail="Sepet öğesi bulunamadı"
-            )
+            raise CartItemNotFound()
             
         if cart_item.UserID != current_user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, 
-                detail="Bu işlem için yetkiniz yok."
-            )
+            raise CartAccessDenied()
             
         return cart_item
 

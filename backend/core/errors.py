@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from backend.exceptions.base import BaseAPIException
 
 def register_exception_handlers(app: FastAPI):
     
@@ -16,6 +17,22 @@ def register_exception_handlers(app: FastAPI):
                 "error": {
                     "code": exc.status_code,
                     "message": exc.detail, # Bizim yazdığımız "Kullanıcı bulunamadı" mesajı
+                    "path": request.url.path
+                }
+            },
+        )
+
+    # 1.5. ÖZEL UYGULAMA HATALARI (BrandNotFound vb.)
+    @app.exception_handler(BaseAPIException)
+    async def base_api_exception_handler(request: Request, exc: BaseAPIException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "success": False,
+                "error": {
+                    "code": exc.status_code,
+                    "message": exc.message, 
+                    "payload": exc.payload,
                     "path": request.url.path
                 }
             },

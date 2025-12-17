@@ -1,4 +1,4 @@
-from http.client import HTTPException
+from fastapi import HTTPException
 import traceback
 from fastapi import APIRouter, Depends, Form
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,15 +8,23 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 router = APIRouter(tags=["Payment"])
 
+from backend.schemas.payment import AddressAndUserInfoSchema
+
 @router.post("/create")
 async def create_payment(
+    payment_data: AddressAndUserInfoSchema,
     db: AsyncSession = Depends(get_async_db), 
     current_user = Depends(get_current_user)
 ):
     """
     Kullanıcının sepetinden toplam fiyatı alır ve Iyzico test modunda checkoutFormContent döner.
+    Frontend'den gelen adres bilgilerini Iyzico formuna gömer.
     """
-    checkout_content = await payment_crud.create_payment_form(db, user_id=current_user.UserID)
+    checkout_content = await payment_crud.create_payment_form(
+        db, 
+        user_id=current_user.UserID, 
+        address_data=payment_data
+    )
     # Burada direkt HTML içeriğini döndürüyoruz ki, frontend Iyzico'ya yönlendirmeyi yapsın.
     return {"checkoutFormContent": checkout_content}
 

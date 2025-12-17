@@ -8,6 +8,7 @@ from backend.crud.base import CRUDBase
 from backend.models import returns, users, orders, ordersdetails, watches 
 from backend.schemas import ReturnCreate, ReturnUpdate
 from backend.models.orders import orders # İlişki yüklemesi için orders modelini açıkça import et
+from backend.exceptions import ReturnNotFound
 
 class CRUDReturn(CRUDBase[returns, ReturnCreate, ReturnUpdate]):
     
@@ -24,7 +25,12 @@ class CRUDReturn(CRUDBase[returns, ReturnCreate, ReturnUpdate]):
                 # 3. İlişki: Sipariş Detayları -> Saat (Ürün)
                 .selectinload(ordersdetails.watch)  
                 # 4. İlişki: Saat -> Marka
-                .selectinload(watches.brand),       
+                .selectinload(watches.brand),
+            
+            # Yeni: OrderDetail ilişkisi
+            selectinload(self.model.order_detail)
+                .selectinload(ordersdetails.watch)
+                .selectinload(watches.brand),
                 
             # Diğer İlişki
             selectinload(self.model.user)
@@ -63,7 +69,12 @@ class CRUDReturn(CRUDBase[returns, ReturnCreate, ReturnUpdate]):
         
         db.add(db_obj)
         await db.commit()
-        await db.refresh(db_obj)
+        # await db.refresh(db_obj) # Lazy loading hatasına neden oluyor
+        
+        # Refresh yerine eager loading ile tekrar çekiyoruz
+        query = select(self.model).where(self.model.ReturnID == db_obj.ReturnID).options(*self._get_eager_options())
+        result = await db.execute(query)
+        db_obj = result.scalars().first()
         
         return db_obj
 
@@ -88,7 +99,7 @@ class CRUDReturn(CRUDBase[returns, ReturnCreate, ReturnUpdate]):
         db_obj = await self.get(db, id=return_id)
         
         if not db_obj:
-            raise HTTPException(status_code=404, detail="İade/Değişim talebi bulunamadı.")
+            raise ReturnNotFound()
             
         update_data = status_in.model_dump(exclude_unset=True, by_alias=True)
         

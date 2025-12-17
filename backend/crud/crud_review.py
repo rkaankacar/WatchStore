@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from backend.crud.base import CRUDBase
 from backend.models import reviews, users, watches, brands 
 from backend.schemas import ReviewCreate, ReviewUpdate
+from backend.exceptions import ReviewNotFound, ReviewAccessDenied
 
 class CRUDReview(CRUDBase[reviews, ReviewCreate, ReviewUpdate]):
     
@@ -79,10 +80,10 @@ class CRUDReview(CRUDBase[reviews, ReviewCreate, ReviewUpdate]):
         review_to_delete: Optional[reviews] = await self.get(db, id=review_id)
         
         if not review_to_delete:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Yorum bulunamadı")
+            raise ReviewNotFound()
         
         if review_to_delete.UserID != current_user.UserID:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sadece kendi yorumunuzu silebilirsiniz.")
+            raise ReviewAccessDenied()
         
         await self.remove(db, id=review_id)
     async def remove_by_watch_id(self, db: AsyncSession, *, watch_id: int) -> None:

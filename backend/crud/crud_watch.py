@@ -13,6 +13,7 @@ from backend.schemas import WatchCreate, WatchUpdate, WatchImageCreate, WatchIma
 from backend.crud.crud_cart import cart_crud
 from backend.crud.crud_review import review
 from backend.crud.crud_favorite import favorites_crud
+from backend.exceptions import WatchNotFound
 ModelType = TypeVar("ModelType", bound=watches)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
@@ -58,10 +59,7 @@ class CRUDWatch(CRUDBase[watches, WatchCreate, WatchUpdate]):
     async def get_or_404(self, db: AsyncSession, *, id: int) -> ModelType:
         watch = await self.get(db, id=id)
         if watch is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Saat bulunamadı"
-            )
+            raise WatchNotFound()
         return watch
 
     async def update_or_404(
