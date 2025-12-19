@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
-import { ShoppingCart, User, Menu, X, Watch, LogOut, UserPlus, LogIn, LayoutDashboard, Heart } from 'lucide-react'; 
+import { ShoppingCart, User, Menu, X, Watch, LogOut, UserPlus, LogIn, LayoutDashboard, Heart, Search } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Navbar = ({ user, handleLogout }) => {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
+      setIsNavOpen(false);
+      setSearchTerm('');
+    }
+  };
 
   const isAdmin = user?.role === 'admin';
 
@@ -49,6 +59,23 @@ const Navbar = ({ user, handleLogout }) => {
             )}
           </ul>
 
+          {/* SEARCH BAR */}
+          <form className="d-flex mx-3" onSubmit={handleSearch} role="search">
+            <div className="input-group">
+              <input
+                className="form-control form-control-sm bg-dark text-warning border-secondary"
+                type="search"
+                placeholder="Marka veya model ara..."
+                aria-label="Search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <button className="btn btn-sm btn-outline-warning" type="submit">
+                <Search size={16} />
+              </button>
+            </div>
+          </form>
+
           <div className="d-flex align-items-center gap-3">
             {user ? (
               // --- GİRİŞ YAPMIŞ KULLANICI ---
@@ -68,7 +95,7 @@ const Navbar = ({ user, handleLogout }) => {
                 </div>
 
                 {/* 3. PROFİL VE ÇIKIŞ (DEĞİŞİKLİK BURADA YAPILDI) */}
-                
+
                 {/* Kullanıcı Adı Linki */}
                 <Link to="/profil" className="text-decoration-none text-white" title="Profilim">
                   <div className="d-flex align-items-center gap-2 border-start ps-3 ms-2 border-secondary">
@@ -77,7 +104,7 @@ const Navbar = ({ user, handleLogout }) => {
                     </span>
                   </div>
                 </Link>
-                
+
                 {/* Çıkış Butonu */}
                 <button
                   className="btn btn-sm btn-outline-danger d-flex align-items-center gap-2 rounded-pill px-3 ms-2"

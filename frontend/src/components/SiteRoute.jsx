@@ -18,6 +18,7 @@ import Contact from '../pages/Contact';
 import FAQ from '../pages/FAQ';
 import Profile from '../pages/Profile';// <-- Profile bileşeninizi buraya eklediğinizden emin olun
 import ReturnDetails from '../pages/ReturnDetails';
+import SearchResults from '../pages/SearchResults';
 
 
 export default function SiteRoute({ handleLogin, user }) {
@@ -51,6 +52,7 @@ export default function SiteRoute({ handleLogin, user }) {
                   <Route path="/collectiondetail" element={<CollectionDetail />} />
                   <Route path="/product/:id" element={<ProductDetail />} />
                   <Route path="/checkout" element={<Checkout user={user} />} />
+                  <Route path="/search" element={<SearchResults />} />
 
 
                   {/* 1. PROFİL KORUMASI */}

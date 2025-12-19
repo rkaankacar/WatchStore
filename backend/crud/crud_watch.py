@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 # Modelleri import et
 from backend.crud.base import CRUDBase
-from backend.models import watches, watches_images, reviews, users
+from backend.models import watches, watches_images, reviews, users, brands
 from backend.schemas import WatchCreate, WatchUpdate, WatchImageCreate, WatchImageUpdate
 from backend.crud.crud_cart import cart_crud
 from backend.crud.crud_review import review
@@ -107,6 +107,34 @@ class CRUDWatch(CRUDBase[watches, WatchCreate, WatchUpdate]):
         query = query.where(watches.BrandID == brand_id)
         query = query.offset(skip).limit(limit)
         result = await db.execute(query)
+        return result.scalars().all()
+
+    async def search_watches(
+        self,
+        db: AsyncSession,
+        *,
+        query_str: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[watches]:
+        """
+        ModelName veya BrandName içerisinde arama yapar (Case Insensitive).
+        """
+        from sqlalchemy import or_
+
+        stmt = self._select_with_relationships()
+        stmt = stmt.join(watches.brand)  # Brand ile join yapilmali
+        
+        # ILIKE ile case-insensitive arama
+        search_filter = or_(
+            watches.ModelName.ilike(f"%{query_str}%"),
+            brands.BrandName.ilike(f"%{query_str}%")
+        )
+        
+        stmt = stmt.where(search_filter)
+        stmt = stmt.offset(skip).limit(limit)
+        
+        result = await db.execute(stmt)
         return result.scalars().all()
 
 # --- INSTANCE TANIMLAMALARI (En alta taşındı) ---

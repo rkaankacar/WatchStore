@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List, Any, Optional
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,12 +29,16 @@ router = APIRouter()
 async def read_watches(
     skip: int = 0,
     limit: int = 100,
+    q: Optional[str] = None,
     db: AsyncSession = Depends(deps.get_async_db)
 ) -> Any:
     """
-    Tüm saatleri listeler.
+    Tüm saatleri listeler veya arama yapar.
     """
-    watches = await watch_crud.get_multi(db, skip=skip, limit=limit)
+    if q:
+        watches = await watch_crud.search_watches(db, query_str=q, skip=skip, limit=limit)
+    else:
+        watches = await watch_crud.get_multi(db, skip=skip, limit=limit)
     return watches
 
 # 2. YENİ SAAT EKLE
